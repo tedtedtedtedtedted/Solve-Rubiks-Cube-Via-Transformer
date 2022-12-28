@@ -2,8 +2,17 @@
 Explore the idea of machine learning on invariance. Apply invariance learner on solving Rubik's cube.
 
 <p align="center">
-<img src="https://storage.needpix.com/rsynced_images/symmetry-4069895_1280.jpg" width="400" />
+<img src="https://cdn.futura-sciences.com/cdn-cgi/image/width=1024,quality=50,format=auto/sources/images/dossier/1671/07-1671.jpg"
+     width="700" />
 </p>
+
+
+<p align="center">
+<img src="https://wallpaperaccess.com/full/1949972.jpg"
+     width="700" />
+</p>
+
+
 
 - Theme: Invariance learning.
 

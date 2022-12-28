@@ -1,6 +1,9 @@
 # Invariance-Learner-On-Rubik-Cube
 Explore the idea of machine learning on invariance. Apply invariance learner on solving Rubik's cube.
 
+<p align="center">
+<img src="https://storage.needpix.com/rsynced_images/symmetry-4069895_1280.jpg" width="400" />
+</p>
 
 - Theme: Invariance learning.
 

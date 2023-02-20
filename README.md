@@ -19,3 +19,7 @@
      - Generalize to $d \times d$ Rubik's cube.
      - Generalize to any reinforcement learning tasks.
 
+- Handicaps:
+     - No expert data.
+     - No structure-specific, hard-coded algorithm.
+     - No overkill with models like GPT-3.

@@ -7,5 +7,9 @@
 </p>
 
 - Name: Curious Transformer.
-
+     - Curious: Curiousity-driven learning.
+     - Transformer: Attention mechanism.
+     
+- Core:
+     - Decision transformer uses offline RL, but we combine curiousity-driven learning so that it becomes online.
 

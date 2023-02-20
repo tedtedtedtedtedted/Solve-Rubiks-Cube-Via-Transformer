@@ -21,5 +21,5 @@
 
 - Handicaps:
      - No expert data.
-     - No structure-specific, hard-coded algorithm.
+     - No problem-specific, hard-coded algorithm.
      - No overkill with models like GPT-3.

@@ -11,6 +11,6 @@
      - Transformer: Attention mechanism.
      
 - Core:
-     - Transformer + RL $\implies$ Decision Transformer.
-     - Decision Transformer (offline) + Curiousity-driven Learning $\implies$ Online Decision Transformer.
+     - Transformer + RL $\rightarrow$ Decision Transformer.
+     - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Online Decision Transformer.
 

@@ -17,4 +17,5 @@
 - Proof of Concept:
      - Apply Curious Transformer to $3 \times 3$ Rubik's cube.
      - Generalize to $d \times d$ Rubik's cube.
+     - Generalize to any reinforcement learning tasks.
 

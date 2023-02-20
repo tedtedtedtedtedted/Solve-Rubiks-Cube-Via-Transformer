@@ -12,7 +12,7 @@
      
 - Core:
      - Transformer $\in$ RL $\rightarrow$ Decision Transformer.
-     - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Online Decision Transformer.
+     - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Curious Transformer (online).
 
 - Proof of Concept:
      - [ ] Apply Curious Transformer to $3 \times 3$ Rubik's cube.

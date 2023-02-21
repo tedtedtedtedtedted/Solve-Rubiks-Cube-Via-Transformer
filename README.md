@@ -30,6 +30,9 @@ pip install -e .
 or equivalent for your package manager (or `python3 -m pip install -e .` if it doesn't work).
 
 2. Run rubiks.py to check if everything works.
+```Shell
+python3 rubiks.py
+```
 
 3. Import Cube from rubiks to start building intelligent agents :)
 

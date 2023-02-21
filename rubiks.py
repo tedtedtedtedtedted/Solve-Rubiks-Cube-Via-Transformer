@@ -3,7 +3,7 @@ from gym_Rubiks_Cube.envs.rubiks_cube_env import RubiksCubeEnv
 
 class Rubiks():
     """A wrapper for the Rubiks Cube gym environment.
-    Is built from https://github.com/RobinChiu/gym-Rubiks-Cube
+    Built from https://github.com/RobinChiu/gym-Rubiks-Cube
     """
     def __init__(self, size=3, episode_length=40):
         """
@@ -17,7 +17,7 @@ class Rubiks():
     def take_action(self, action):
         """Action is a number from 0 to 11 representing a possible quarter turn.
 
-        The next state, reward, and boolean that is true when the episode has terminated is returned.
+        The next state, reward, and boolean that is true when the episode has terminated are returned.
 
         For reference, the moves from 0 to 11 in standard cube notation are:
         F, R, L, U, D, B, F', R', L', U', D', B'
@@ -30,31 +30,31 @@ class Rubiks():
             raise Exception(f"Invalid Action: {action}")
 
     def scramble(self, scramble_length=10):
-        """Scramble the cube
-        scramble_length: The number of random moves that will be used to scramble the cube
+        """Scramble the cube.
+        scramble_length: The number of random moves that will be used to scramble the cube.
         """
         self.cube.reset()
         self.cube.setScramble(scramble_length, scramble_length)
         self.cube.scramble()
 
     def render(self):
-        """Render the cube"""
+        """Render the cube."""
         self.cube.render()
 
     def reset(self):
-        """Reset the cube"""
+        """Reset the cube."""
         self.cube.reset()
 
     def step(self):
-        """Call the step method
-        Here in case we need compatibility with other Gym environments.
+        """Call the step method,
+        here in case we need compatibility with other Gym environments.
         """
         return self.cube.step()
 
 
 if __name__ == "__main__":
     # Example run for reference
-    cube = Rubiks(4, 314)  # Create a 4 by 4 cube, that terminates after 314 moves
+    cube = Rubiks(4, 314)  # Create a 4 by 4 by 4 cube, that terminates after 314 moves
     current_state, reward, is_done = cube.take_action(0)  # Do a front turn clockwise
     print(f"This is the state we are in, represented as an ordered list of colors: {current_state}")
     cube.take_action(6)  # Undo the front turn

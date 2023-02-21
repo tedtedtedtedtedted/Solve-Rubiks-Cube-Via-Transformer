@@ -15,7 +15,7 @@
 - Transformer $\in$ Reinforcement Learning $\rightarrow$ Decision Transformer.
 - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Curious Transformer (online).
 - No expert data.
-- No problem-specific, hard-coded algorithm.
+- No problem-specific, hard-coded solver.
 - No overkill with models like GPT-3.
 - [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.

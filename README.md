@@ -12,9 +12,9 @@
      - Transformer: Attention mechanism.
      
 ## Core Idea:
-- Transformer $\in$ RL $\rightarrow$ Decision Transformer.
+- Transformer $\in$ Reinforcement Learning $\rightarrow$ Decision Transformer.
 - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Curious Transformer (online).
-- - No expert data.
+- No expert data.
 - No problem-specific, hard-coded algorithm.
 - No overkill with models like GPT-3.
 - [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.

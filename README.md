@@ -14,16 +14,13 @@
 ## Core Idea:
 - Transformer $\in$ RL $\rightarrow$ Decision Transformer.
 - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Curious Transformer (online).
-
-## Proof of Concept
+- - No expert data.
+- No problem-specific, hard-coded algorithm.
+- No overkill with models like GPT-3.
 - [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.
 - [ ] Generalize to any reinforcement learning tasks.
 
-## Handicaps
-- No expert data.
-- No problem-specific, hard-coded algorithm.
-- No overkill with models like GPT-3.
 
 ## First time setup
 1. In the directory with the file setup.py, run the command:

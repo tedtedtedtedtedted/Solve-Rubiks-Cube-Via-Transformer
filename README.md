@@ -19,7 +19,7 @@
 - No overkill with models like GPT-3.
 - [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.
-- [ ] Generalize to any Reinforcement Learning tasks.
+- [ ] Generalize to any Reinforcement Learning tasks with deterministic environment.
 
 
 ## First time setup

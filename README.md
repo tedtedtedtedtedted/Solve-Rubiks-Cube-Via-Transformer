@@ -16,7 +16,7 @@
 - Decision Transformer (offline) + Curiousity-driven Learning $\rightarrow$ Curious Transformer (online).
 
 ## Proof of Concept
-- [ ] Apply Curious Transformer to $3 \times 3$ Rubik's cube.
+- [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.
 - [ ] Generalize to any reinforcement learning tasks.
 

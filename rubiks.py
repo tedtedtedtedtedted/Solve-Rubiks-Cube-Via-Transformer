@@ -8,9 +8,9 @@ class Rubiks():
     def __init__(self, size=3, episode_length=40):
         """
         size: The rubiks cube created will be a size x size x size cube.
-        episode_length: The episode will end after episode_length moves, and return negative reward
+        episode_length: The episode will end after episode_length moves.
         """
-        self.cube = RubiksCubeEnv(size)
+        self.cube = RubiksCubeEnv(size, episode_length)
         self.cube.doScramble = False
         self.cube.reset()
 

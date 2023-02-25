@@ -54,7 +54,7 @@ class Rubiks():
 
 if __name__ == "__main__":
     # Example run for reference
-    cube = Rubiks(1, 314)  # Create a 4 by 4 by 4 cube, that terminates after 314 moves
+    cube = Rubiks(3, 314)  # Create a 4 by 4 by 4 cube, that terminates after 314 moves
     cube.take_action(0)  # Do a front turn clockwise
     current_state, reward, is_done = cube.take_action(6)  # Undo the front turn
     print(f"This is the state we are in, represented as an ordered list of colors: {current_state}")

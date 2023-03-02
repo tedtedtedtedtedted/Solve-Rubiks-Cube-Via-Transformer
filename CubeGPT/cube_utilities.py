@@ -19,7 +19,6 @@ def internal_to_color():
     - Input: A internal representation of 3x3 Rubik's cube.
     - Output: Conversion to color representation of the cube. 
     """
-##########333hahahahaha#
 
 
 

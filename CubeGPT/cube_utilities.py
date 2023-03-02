@@ -5,12 +5,12 @@
 
 
 
-def color_to_internal(color_repr: list):
+def color_to_internal(color_repr: str):
     """
     - Input: (str) A color representation of 3x3 Rubik's cube.
     - Output: (list) Conversion to internal representation of the cube.
     """
-    internal_repr = [None] * 26 # 3x3 Rubik's cube has 26 small cubes excluding the core cube which has no color.
+    internal_repr = [""] * 26 # 3x3 Rubik's cube has 26 small cubes excluding the core cube which has no color.
 
     # Upper layer:
     internal_repr[0] = color_repr[6] + color_repr[18] + color_repr[38]
@@ -47,13 +47,13 @@ def color_to_internal(color_repr: list):
     return internal_repr
 
 
-def internal_to_color(internal_repr: list):
+def internal_to_color(internal_repr: list[str]):
     """
     - Input: (list) A internal representation of 3x3 Rubik's cube.
     - Output: (str) Conversion to color representation of the cube. 
     """
 
-    color_repr_list = [None] * 54
+    color_repr_list = [""] * 54
 
     # Up face.
     color_repr_list[0] = internal_repr[6][0]
@@ -121,23 +121,223 @@ def internal_to_color(internal_repr: list):
     color_repr_list[52] = internal_repr[22][1]
     color_repr_list[53] = internal_repr[25][2]
 
-
-
     return str(color_repr_list)
     
 
 
 
-def cube_permute():
+
+
+def cube_permute_single(state: list[str], move: str):
+    """
+    - Assuming internal representation of cube state.
+    - Input:
+        - An starting state to start with.
+        - A single permutation.
+    - Output:
+        - An arrived final state.
+    - Note: Don't care about fast performance. Thus will lessen the code to prioritize readability and correctness over speed performance.
+    """
+
+    color_repr = internal_to_color(state)
+    color_repr = list(color_repr)
+    color_repr_transformed = color_repr
+
+    match move: 
+        case "U": 
+            # Convert to color repr then perform operation then convert back to internal repr. 
+            color_repr_transformed[20] = color_repr[47]
+            color_repr_transformed[19] = color_repr[46]
+            color_repr_transformed[18] = color_repr[45]
+
+            color_repr_transformed[38] = color_repr[20]
+            color_repr_transformed[37] = color_repr[19]
+            color_repr_transformed[36] = color_repr[18]
+
+            color_repr_transformed[29] = color_repr[38]
+            color_repr_transformed[28] = color_repr[37]
+            color_repr_transformed[27] = color_repr[36]
+
+
+            color_repr_transformed[47] = color_repr[29]
+            color_repr_transformed[46] = color_repr[28]
+            color_repr_transformed[45] = color_repr[27]
+        case "D": 
+            color_repr_transformed[24] = color_repr[42]
+            color_repr_transformed[25] = color_repr[43]
+            color_repr_transformed[26] = color_repr[44]
+
+            color_repr_transformed[51] = color_repr[24]
+            color_repr_transformed[52] = color_repr[25]
+            color_repr_transformed[53] = color_repr[26]
+
+            color_repr_transformed[33] = color_repr[51]
+            color_repr_transformed[34] = color_repr[52]
+            color_repr_transformed[35] = color_repr[53]
+
+            color_repr_transformed[42] = color_repr[33]
+            color_repr_transformed[43] = color_repr[34]
+            color_repr_transformed[44] = color_repr[35]
+        case "F": 
+            color_repr_transformed[6] = color_repr[44]
+            color_repr_transformed[7] = color_repr[41]
+            color_repr_transformed[8] = color_repr[38]
+
+            color_repr_transformed[45] = color_repr[6]
+            color_repr_transformed[48] = color_repr[7]
+            color_repr_transformed[51] = color_repr[8]
+
+            color_repr_transformed[11] = color_repr[45]
+            color_repr_transformed[10] = color_repr[48]
+            color_repr_transformed[9] = color_repr[51]
+
+            color_repr_transformed[44] = color_repr[11]
+            color_repr_transformed[41] = color_repr[10]
+            color_repr_transformed[38] = color_repr[9]
+        case "B":                 
+            color_repr_transformed[2] = color_repr[53]
+            color_repr_transformed[1] = color_repr[50]
+            color_repr_transformed[0] = color_repr[47]
+
+            color_repr_transformed[36] = color_repr[2]
+            color_repr_transformed[39] = color_repr[1]
+            color_repr_transformed[42] = color_repr[0]
+
+            color_repr_transformed[15] = color_repr[36]
+            color_repr_transformed[16] = color_repr[39]
+            color_repr_transformed[17] = color_repr[42]
+
+            color_repr_transformed[53] = color_repr[15]
+            color_repr_transformed[50] = color_repr[16]
+            color_repr_transformed[47] = color_repr[17]
+        case "L":
+            color_repr_transformed[0] = color_repr[35]
+            color_repr_transformed[3] = color_repr[32]
+            color_repr_transformed[6] = color_repr[29]
+
+            color_repr_transformed[18] = color_repr[0]
+            color_repr_transformed[21] = color_repr[3]
+            color_repr_transformed[24] = color_repr[6]
+
+            color_repr_transformed[9] = color_repr[18]
+            color_repr_transformed[12] = color_repr[21]
+            color_repr_transformed[15] = color_repr[24]
+
+            color_repr_transformed[35] = color_repr[9]
+            color_repr_transformed[32] = color_repr[12]
+            color_repr_transformed[29] = color_repr[15]
+        case "R":
+            color_repr_transformed[8] = color_repr[26]
+            color_repr_transformed[5] = color_repr[23]
+            color_repr_transformed[2] = color_repr[20]
+
+            color_repr_transformed[27] = color_repr[8]
+            color_repr_transformed[30] = color_repr[5]
+            color_repr_transformed[33] = color_repr[2]
+
+            color_repr_transformed[17] = color_repr[27]
+            color_repr_transformed[14] = color_repr[30]
+            color_repr_transformed[11] = color_repr[33]
+
+            color_repr_transformed[26] = color_repr[17]
+            color_repr_transformed[23] = color_repr[14]
+            color_repr_transformed[20] = color_repr[11]
+        case "Z":
+            color_repr_transformed[1] = color_repr[34]
+            color_repr_transformed[4] = color_repr[31]
+            color_repr_transformed[7] = color_repr[28]
+
+            color_repr_transformed[19] = color_repr[1]
+            color_repr_transformed[22] = color_repr[4]
+            color_repr_transformed[25] = color_repr[7]
+
+            color_repr_transformed[10] = color_repr[19]
+            color_repr_transformed[13] = color_repr[22]
+            color_repr_transformed[16] = color_repr[25]
+
+            color_repr_transformed[34] = color_repr[10]
+            color_repr_transformed[31] = color_repr[13]
+            color_repr_transformed[28] = color_repr[16]  
+        case "H":
+            color_repr_transformed[23] = color_repr[50]
+            color_repr_transformed[22] = color_repr[49]
+            color_repr_transformed[21] = color_repr[48]
+
+            color_repr_transformed[41] = color_repr[23]
+            color_repr_transformed[40] = color_repr[22]
+            color_repr_transformed[39] = color_repr[21]
+
+            color_repr_transformed[32] = color_repr[41]
+            color_repr_transformed[31] = color_repr[40]
+            color_repr_transformed[30] = color_repr[39]
+
+            color_repr_transformed[50] = color_repr[32]
+            color_repr_transformed[49] = color_repr[31]
+            color_repr_transformed[48] = color_repr[30]
+        case "S":
+            color_repr_transformed[3] = color_repr[43]
+            color_repr_transformed[4] = color_repr[40]
+            color_repr_transformed[5] = color_repr[37]
+
+            color_repr_transformed[46] = color_repr[3]
+            color_repr_transformed[49] = color_repr[4]
+            color_repr_transformed[52] = color_repr[5]
+
+            color_repr_transformed[14] = color_repr[46]
+            color_repr_transformed[13] = color_repr[49]
+            color_repr_transformed[12] = color_repr[52]
+
+            color_repr_transformed[43] = color_repr[14]
+            color_repr_transformed[40] = color_repr[13]
+            color_repr_transformed[37] = color_repr[12]
+        case _: # Default case.
+            # TODO: raise error, move not found.
+            print("<cube_permute_single>: move not recognized")
+        
+    return color_to_internal(str(color_repr_transformed))
+
+
+
+
+
+
+def stupidize_permutations(moves: str):
+    """
+    - Input:
+        - A sequence of moves that may contain inverse moves.
+    - Output:
+        - A stupid sequence (list) moves with inverse being replaced by 3 times non-inverse moves, and also for sandwiched moves.
+    """
+    stupid_moves = []
+    for i in range(len(moves)):
+        if moves[i].islower():
+            stupid_moves.append(moves[i].upper())
+            stupid_moves.append(moves[i].upper())
+            stupid_moves.append(moves[i].upper())
+        else:
+             stupid_moves.append(moves[i])
+    return stupid_moves
+
+
+
+
+
+def cube_permute(starting_state: list[str], moves: str):
     """
     - Assuming using internal representation of cube state.
     - Input:
+        - An starting state to start from.
         - A sequence of permutations.
-        - An initial state to start from.
     - Output:
         - An arrived final state.
     """
-    
+    # Convert one lower case to three upper case.
+    stupid_moves = stupidize_permutations(moves)
+    curr_state = starting_state.copy() # TODO: RC whether necessary in future chain can or cannot modify original mutable list, for now just play safe.
+    for move in stupid_moves:
+        curr_state = cube_permute_single(curr_state, move)
+    return curr_state 
+
 
 
 

@@ -54,7 +54,7 @@
     - Inverse indicator:
         - E.g. "U'" is the inverse of "U". If none indicated, then follow above described standard orientation of permutation.
     - Permutation sequence:
-        $${\text{\[layer\]\[inverse\_indicator\]}}^k$$.
+        $$\{\text{\[layer\]\[inverse\_indicator\]}\}^k$$.
     - Will not parse syntax like "U2" or "U3"..., just do "UU".
         
 

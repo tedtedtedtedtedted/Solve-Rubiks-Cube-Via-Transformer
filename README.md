@@ -17,7 +17,7 @@
 - No expert data.
 - No problem-specific, hard-coded solver.
 - No overkill with models like GPT-3.
-- [x] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
+- [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.
 - [ ] Generalize to any Reinforcement Learning tasks with deterministic, fully observable, discrete environment.
 

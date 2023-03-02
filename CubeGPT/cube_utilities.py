@@ -10,7 +10,7 @@ def color_to_internal():
     - Input: A color representation of 3x3 Rubik's cube.
     - Output: Conversion to internal representation of the cube.
     """
-#
+
 
 
 

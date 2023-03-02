@@ -52,9 +52,9 @@
         - H: Horizontal middle layer; Follows orientation of up face.
         - S: Sandwiched middle layer; Follows orientation of front face.
     - Inverse indicator:
-        - E.g. "U'" is the inverse of "U". If none indicated, then follow above described standard orientation of permutation.
+        - Lower case is the inverse of upper case. E.g. "u" is the inverse of "U". Upper case follow above described standard orientation of permutation.
     - Permutation sequence:
-        $$\{\text{\[layer\]\[inverse\_indicator\]}\}^k$$.
+        $$\{\text{\[layer + orientation\]}\}^k$$.
     - Will not parse syntax like "U2" or "U3"..., just do "UU".
         
 

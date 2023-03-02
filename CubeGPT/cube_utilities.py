@@ -128,9 +128,9 @@ def internal_to_color(internal_repr: list[str]):
 
 
 
-def cube_permute_single(state: list[str], move: str):
+def cube_permute_single(state: str, move: str):
     """
-    - Assuming internal representation of cube state.
+    - Assuming color representation of cube state.
     - Input:
         - An starting state to start with.
         - A single permutation.
@@ -139,8 +139,7 @@ def cube_permute_single(state: list[str], move: str):
     - Note: Don't care about fast performance. Thus will lessen the code to prioritize readability and correctness over speed performance.
     """
 
-    color_repr = internal_to_color(state)
-    color_repr = list(color_repr)
+    color_repr = list(state)
     color_repr_transformed = color_repr
 
     match move: 
@@ -290,11 +289,8 @@ def cube_permute_single(state: list[str], move: str):
             color_repr_transformed[43] = color_repr[14]
             color_repr_transformed[40] = color_repr[13]
             color_repr_transformed[37] = color_repr[12]
-        case _: # Default case.
-            # TODO: raise error, move not found.
-            print("<cube_permute_single>: move not recognized")
         
-    return color_to_internal(str(color_repr_transformed))
+    return str(color_repr_transformed)
 
 
 
@@ -322,9 +318,9 @@ def stupidize_permutations(moves: str):
 
 
 
-def cube_permute(starting_state: list[str], moves: str):
+def cube_permute(starting_state: str, moves: str):
     """
-    - Assuming using internal representation of cube state.
+    - Assuming using color representation of cube state.
     - Input:
         - An starting state to start from.
         - A sequence of permutations.
@@ -333,7 +329,7 @@ def cube_permute(starting_state: list[str], moves: str):
     """
     # Convert one lower case to three upper case.
     stupid_moves = stupidize_permutations(moves)
-    curr_state = starting_state.copy() # TODO: RC whether necessary in future chain can or cannot modify original mutable list, for now just play safe.
+    curr_state = starting_state
     for move in stupid_moves:
         curr_state = cube_permute_single(curr_state, move)
     return curr_state 
@@ -342,12 +338,42 @@ def cube_permute(starting_state: list[str], moves: str):
 
 
 
-def challenge_generator():
+def init_state(repr_mode: str):
+    """
+    - Input: Representation mode, either color repr or internal repr.
+    - Output: The initial state of the cube. 
+    """
+    # For now assume color repr.
+    state = [""] * 54
+
+    colors = ["Y", "W", "O", "R", "G", "B"]
+    for face in range(6):
+        color = colors[face]
+        for i in range(9):
+            state[face * 9 + i] = color
+
+    return str(state)
+
+
+def challenge_generator(k: int, repr_mode: str, random_start: bool):
     """
     - Input:
         - Number of moves to permute.
         - Representation mode (color repr or internal repr).
+        - Whether starting state is random or not. Otherwise, start from initial state.
     - Output:
         - A (internal or color representation) sequence of states and actions, where randomness from actions.
     """
-    # TODO: Decide on whether always begin from initial state or should always first arrive to an random state (which we can use this function itself), then start to record permutation history. 
+    
+    curr_state = init_state(repr_mode) # For now assumed color repr.
+    if random_start:
+        for i in range(100):
+            # TODO: Choose random action.
+            action = ...
+            curr_state = ...
+ 
+    for i in range(k):
+        
+
+    # TODO: Decide on return type.
+        

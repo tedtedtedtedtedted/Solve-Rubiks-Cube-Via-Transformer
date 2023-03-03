@@ -2,7 +2,7 @@
 # For representation details, see "CubeGPT/README.md".
 
 
-
+import random
 
 
 def color_to_internal(color_repr: str):
@@ -121,176 +121,236 @@ def internal_to_color(internal_repr: list[str]):
     color_repr_list[52] = internal_repr[22][1]
     color_repr_list[53] = internal_repr[25][2]
 
-    return str(color_repr_list)
+    return "".join(color_repr_list)
     
 
 
-
-
-
-def cube_permute_single(state: str, move: str):
+def cube_permute(starting_state: str, moves: str):
     """
-    - Assuming color representation of cube state.
+    - Assuming using color representation of cube state.
     - Input:
-        - An starting state to start with.
-        - A single permutation.
+        - An starting state to start from.
+        - A sequence of permutations.
     - Output:
         - An arrived final state.
-    - Note: Don't care about fast performance. Thus will lessen the code to prioritize readability and correctness over speed performance.
     """
-
-    color_repr = list(state)
-    color_repr_transformed = color_repr
-
-    match move: 
-        case "U": 
-            # Convert to color repr then perform operation then convert back to internal repr. 
-            color_repr_transformed[20] = color_repr[47]
-            color_repr_transformed[19] = color_repr[46]
-            color_repr_transformed[18] = color_repr[45]
-
-            color_repr_transformed[38] = color_repr[20]
-            color_repr_transformed[37] = color_repr[19]
-            color_repr_transformed[36] = color_repr[18]
-
-            color_repr_transformed[29] = color_repr[38]
-            color_repr_transformed[28] = color_repr[37]
-            color_repr_transformed[27] = color_repr[36]
+    # Convert one lower case to three upper case.
+    stupid_moves = stupidize_permutations(moves)
+    curr_state = starting_state
 
 
-            color_repr_transformed[47] = color_repr[29]
-            color_repr_transformed[46] = color_repr[28]
-            color_repr_transformed[45] = color_repr[27]
-        case "D": 
-            color_repr_transformed[24] = color_repr[42]
-            color_repr_transformed[25] = color_repr[43]
-            color_repr_transformed[26] = color_repr[44]
+    def cube_permute_single(state: str, move: str):
+        """
+        - Assuming color representation of cube state.
+        - Input:
+            - An starting state to start with.
+            - A single permutation.
+        - Output:
+            - An arrived final state.
+        - Note: Don't care about fast performance. Thus will lessen the code to prioritize readability and correctness over speed performance.
+        """
+    
 
-            color_repr_transformed[51] = color_repr[24]
-            color_repr_transformed[52] = color_repr[25]
-            color_repr_transformed[53] = color_repr[26]
+        def rotate_face_clockwise(starting_index: int):
+            """
+            - Rotate a face.
+            - Assuming a face have consecutive indices.
+            """
+            state_transformed[starting_index + 0] = state[starting_index + 6]
+            state_transformed[starting_index + 1] = state[starting_index + 3]
+            state_transformed[starting_index + 2] = state[starting_index + 0]
+            state_transformed[starting_index + 3] = state[starting_index + 7]
+            # Skip center.
+            state_transformed[starting_index + 5] = state[starting_index + 1]
+            state_transformed[starting_index + 6] = state[starting_index + 8]
+            state_transformed[starting_index + 7] = state[starting_index + 5]
+            state_transformed[starting_index + 8] = state[starting_index + 2]
+                 
 
-            color_repr_transformed[33] = color_repr[51]
-            color_repr_transformed[34] = color_repr[52]
-            color_repr_transformed[35] = color_repr[53]
 
-            color_repr_transformed[42] = color_repr[33]
-            color_repr_transformed[43] = color_repr[34]
-            color_repr_transformed[44] = color_repr[35]
-        case "F": 
-            color_repr_transformed[6] = color_repr[44]
-            color_repr_transformed[7] = color_repr[41]
-            color_repr_transformed[8] = color_repr[38]
+        state_transformed = list(state)
+    
+        match move: 
+            case "U": 
+                # Convert to color repr then perform operation then convert back to internal repr. 
+                # Stribe change:
+                state_transformed[20] = state[47]
+                state_transformed[19] = state[46]
+                state_transformed[18] = state[45]
+    
+                state_transformed[38] = state[20]
+                state_transformed[37] = state[19]
+                state_transformed[36] = state[18]
+    
+                state_transformed[29] = state[38]
+                state_transformed[28] = state[37]
+                state_transformed[27] = state[36]
+    
+    
+                state_transformed[47] = state[29]
+                state_transformed[46] = state[28]
+                state_transformed[45] = state[27]
 
-            color_repr_transformed[45] = color_repr[6]
-            color_repr_transformed[48] = color_repr[7]
-            color_repr_transformed[51] = color_repr[8]
+                # Face rotation:
+                rotate_face_clockwise(0)
 
-            color_repr_transformed[11] = color_repr[45]
-            color_repr_transformed[10] = color_repr[48]
-            color_repr_transformed[9] = color_repr[51]
+            case "D": 
+                state_transformed[24] = state[42]
+                state_transformed[25] = state[43]
+                state_transformed[26] = state[44]
+    
+                state_transformed[51] = state[24]
+                state_transformed[52] = state[25]
+                state_transformed[53] = state[26]
+    
+                state_transformed[33] = state[51]
+                state_transformed[34] = state[52]
+                state_transformed[35] = state[53]
+    
+                state_transformed[42] = state[33]
+                state_transformed[43] = state[34]
+                state_transformed[44] = state[35]
 
-            color_repr_transformed[44] = color_repr[11]
-            color_repr_transformed[41] = color_repr[10]
-            color_repr_transformed[38] = color_repr[9]
-        case "B":                 
-            color_repr_transformed[2] = color_repr[53]
-            color_repr_transformed[1] = color_repr[50]
-            color_repr_transformed[0] = color_repr[47]
+                # Face rotation:
+                rotate_face_clockwise(9)
 
-            color_repr_transformed[36] = color_repr[2]
-            color_repr_transformed[39] = color_repr[1]
-            color_repr_transformed[42] = color_repr[0]
+            case "F": 
+                state_transformed[6] = state[44]
+                state_transformed[7] = state[41]
+                state_transformed[8] = state[38]
+    
+                state_transformed[45] = state[6]
+                state_transformed[48] = state[7]
+                state_transformed[51] = state[8]
+    
+                state_transformed[11] = state[45]
+                state_transformed[10] = state[48]
+                state_transformed[9] = state[51]
+    
+                state_transformed[44] = state[11]
+                state_transformed[41] = state[10]
+                state_transformed[38] = state[9]
+                
+                # Face rotation:
+                rotate_face_clockwise(18)
 
-            color_repr_transformed[15] = color_repr[36]
-            color_repr_transformed[16] = color_repr[39]
-            color_repr_transformed[17] = color_repr[42]
+            case "B":
+                state_transformed[2] = state[53]
+                state_transformed[1] = state[50]
+                state_transformed[0] = state[47]
+    
+                state_transformed[36] = state[2]
+                state_transformed[39] = state[1]
+                state_transformed[42] = state[0]
+    
+                state_transformed[15] = state[36]
+                state_transformed[16] = state[39]
+                state_transformed[17] = state[42]
+    
+                state_transformed[53] = state[15]
+                state_transformed[50] = state[16]
+                state_transformed[47] = state[17]
 
-            color_repr_transformed[53] = color_repr[15]
-            color_repr_transformed[50] = color_repr[16]
-            color_repr_transformed[47] = color_repr[17]
-        case "L":
-            color_repr_transformed[0] = color_repr[35]
-            color_repr_transformed[3] = color_repr[32]
-            color_repr_transformed[6] = color_repr[29]
+                # Face rotation:
+                rotate_face_clockwise(27)
 
-            color_repr_transformed[18] = color_repr[0]
-            color_repr_transformed[21] = color_repr[3]
-            color_repr_transformed[24] = color_repr[6]
+            case "L":
+                state_transformed[0] = state[35]
+                state_transformed[3] = state[32]
+                state_transformed[6] = state[29]
+    
+                state_transformed[18] = state[0]
+                state_transformed[21] = state[3]
+                state_transformed[24] = state[6]
+    
+                state_transformed[9] = state[18]
+                state_transformed[12] = state[21]
+                state_transformed[15] = state[24]
+    
+                state_transformed[35] = state[9]
+                state_transformed[32] = state[12]
+                state_transformed[29] = state[15]
 
-            color_repr_transformed[9] = color_repr[18]
-            color_repr_transformed[12] = color_repr[21]
-            color_repr_transformed[15] = color_repr[24]
+                # Face rotation:
+                rotate_face_clockwise(36)
 
-            color_repr_transformed[35] = color_repr[9]
-            color_repr_transformed[32] = color_repr[12]
-            color_repr_transformed[29] = color_repr[15]
-        case "R":
-            color_repr_transformed[8] = color_repr[26]
-            color_repr_transformed[5] = color_repr[23]
-            color_repr_transformed[2] = color_repr[20]
+            case "R":
+                state_transformed[8] = state[26]
+                state_transformed[5] = state[23]
+                state_transformed[2] = state[20]
+    
+                state_transformed[27] = state[8]
+                state_transformed[30] = state[5]
+                state_transformed[33] = state[2]
+    
+                state_transformed[17] = state[27]
+                state_transformed[14] = state[30]
+                state_transformed[11] = state[33]
+    
+                state_transformed[26] = state[17]
+                state_transformed[23] = state[14]
+                state_transformed[20] = state[11]
 
-            color_repr_transformed[27] = color_repr[8]
-            color_repr_transformed[30] = color_repr[5]
-            color_repr_transformed[33] = color_repr[2]
+                # Face rotation:
+                rotate_face_clockwise(45)
 
-            color_repr_transformed[17] = color_repr[27]
-            color_repr_transformed[14] = color_repr[30]
-            color_repr_transformed[11] = color_repr[33]
+            case "V":
+                state_transformed[1] = state[34]
+                state_transformed[4] = state[31]
+                state_transformed[7] = state[28]
+    
+                state_transformed[19] = state[1]
+                state_transformed[22] = state[4]
+                state_transformed[25] = state[7]
+    
+                state_transformed[10] = state[19]
+                state_transformed[13] = state[22]
+                state_transformed[16] = state[25]
+    
+                state_transformed[34] = state[10]
+                state_transformed[31] = state[13]
+                state_transformed[28] = state[16]  
+            case "H":
+                state_transformed[23] = state[50]
+                state_transformed[22] = state[49]
+                state_transformed[21] = state[48]
+    
+                state_transformed[41] = state[23]
+                state_transformed[40] = state[22]
+                state_transformed[39] = state[21]
+    
+                state_transformed[32] = state[41]
+                state_transformed[31] = state[40]
+                state_transformed[30] = state[39]
+    
+                state_transformed[50] = state[32]
+                state_transformed[49] = state[31]
+                state_transformed[48] = state[30]
+            case "S":
+                state_transformed[3] = state[43]
+                state_transformed[4] = state[40]
+                state_transformed[5] = state[37]
+    
+                state_transformed[46] = state[3]
+                state_transformed[49] = state[4]
+                state_transformed[52] = state[5]
+    
+                state_transformed[14] = state[46]
+                state_transformed[13] = state[49]
+                state_transformed[12] = state[52]
+    
+                state_transformed[43] = state[14]
+                state_transformed[40] = state[13]
+                state_transformed[37] = state[12]
+            
+        return "".join(state_transformed)
 
-            color_repr_transformed[26] = color_repr[17]
-            color_repr_transformed[23] = color_repr[14]
-            color_repr_transformed[20] = color_repr[11]
-        case "Z":
-            color_repr_transformed[1] = color_repr[34]
-            color_repr_transformed[4] = color_repr[31]
-            color_repr_transformed[7] = color_repr[28]
 
-            color_repr_transformed[19] = color_repr[1]
-            color_repr_transformed[22] = color_repr[4]
-            color_repr_transformed[25] = color_repr[7]
+    for move in stupid_moves:
+        curr_state = cube_permute_single(curr_state, move)
+    return curr_state 
 
-            color_repr_transformed[10] = color_repr[19]
-            color_repr_transformed[13] = color_repr[22]
-            color_repr_transformed[16] = color_repr[25]
 
-            color_repr_transformed[34] = color_repr[10]
-            color_repr_transformed[31] = color_repr[13]
-            color_repr_transformed[28] = color_repr[16]  
-        case "H":
-            color_repr_transformed[23] = color_repr[50]
-            color_repr_transformed[22] = color_repr[49]
-            color_repr_transformed[21] = color_repr[48]
-
-            color_repr_transformed[41] = color_repr[23]
-            color_repr_transformed[40] = color_repr[22]
-            color_repr_transformed[39] = color_repr[21]
-
-            color_repr_transformed[32] = color_repr[41]
-            color_repr_transformed[31] = color_repr[40]
-            color_repr_transformed[30] = color_repr[39]
-
-            color_repr_transformed[50] = color_repr[32]
-            color_repr_transformed[49] = color_repr[31]
-            color_repr_transformed[48] = color_repr[30]
-        case "S":
-            color_repr_transformed[3] = color_repr[43]
-            color_repr_transformed[4] = color_repr[40]
-            color_repr_transformed[5] = color_repr[37]
-
-            color_repr_transformed[46] = color_repr[3]
-            color_repr_transformed[49] = color_repr[4]
-            color_repr_transformed[52] = color_repr[5]
-
-            color_repr_transformed[14] = color_repr[46]
-            color_repr_transformed[13] = color_repr[49]
-            color_repr_transformed[12] = color_repr[52]
-
-            color_repr_transformed[43] = color_repr[14]
-            color_repr_transformed[40] = color_repr[13]
-            color_repr_transformed[37] = color_repr[12]
-        
-    return str(color_repr_transformed)
 
 
 
@@ -312,27 +372,9 @@ def stupidize_permutations(moves: str):
             stupid_moves.append(moves[i].upper())
         else:
              stupid_moves.append(moves[i])
-    return stupid_moves
+    return "".join(stupid_moves)
 
 
-
-
-
-def cube_permute(starting_state: str, moves: str):
-    """
-    - Assuming using color representation of cube state.
-    - Input:
-        - An starting state to start from.
-        - A sequence of permutations.
-    - Output:
-        - An arrived final state.
-    """
-    # Convert one lower case to three upper case.
-    stupid_moves = stupidize_permutations(moves)
-    curr_state = starting_state
-    for move in stupid_moves:
-        curr_state = cube_permute_single(curr_state, move)
-    return curr_state 
 
 
 
@@ -352,10 +394,10 @@ def init_state(repr_mode: str):
         for i in range(9):
             state[face * 9 + i] = color
 
-    return str(state)
+    return "".join(state)
 
 
-def challenge_generator(k: int, repr_mode: str, random_start: bool):
+def challenge_generator(n: int, repr_mode: str, random_start: bool):
     """
     - Input:
         - Number of moves to permute.
@@ -365,15 +407,42 @@ def challenge_generator(k: int, repr_mode: str, random_start: bool):
         - A (internal or color representation) sequence of states and actions, where randomness from actions.
     """
     
-    curr_state = init_state(repr_mode) # For now assumed color repr.
+    curr_state = init_state(repr_mode) # For now assumed color repr. // TODO: Later need internal repr.
+    actions = ["U", "u", "D", "d", "F", "f", "B", "b", "L", "l", "R", "r", "V", "v", "H", "h", "S", "s"]
     if random_start:
-        for i in range(100):
-            # TODO: Choose random action.
-            action = ...
-            curr_state = ...
- 
-    for i in range(k):
+        actions_permute_init_state = random.choices(actions, k=100)
+        for i in range(100): # Ensure a very random starting state.
+            curr_state = cube_permute(curr_state, actions_permute_init_state[i]) 
+
+    record = [""] * (2 * n + 1)
+    record[0] = curr_state
+
+    actions_for_record = random.choices(actions, k=n)
+    for i in range(n):
+        record[2 * i + 1] = actions_for_record[i]
+        record[2 * i + 2] = cube_permute(record[2 * i], actions_for_record[i]) # Don't directly use <cube_permute_single>!
         
 
-    # TODO: Decide on return type.
-        
+    # Return type: List of states (color repr so str) and actions (str).
+    return record 
+
+
+
+if __name__ == "__main__":
+    #state = init_state("haha")
+    #print(state)
+    #state = cube_permute(state, "u")
+    #print("u")
+    #print(state)
+    #state = cube_permute(state, "B")
+    #print("B")
+    #print(state)
+    #state = cube_permute(state, "l")
+    #print("l")
+    #print(state)
+    #print("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB")
+    #print(cube_permute("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB", "B"))
+    record = challenge_generator(100, "haha", False)
+    print(record)
+    print(color_to_internal(init_state("haha")))
+    print(internal_to_color(color_to_internal(init_state("haha"))))

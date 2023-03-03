@@ -481,11 +481,11 @@ if __name__ == "__main__":
    
 
     record = challenge_generator(3, "haha", False)
-    print(record[0])
+    print("State: " + record[0])
     cube_visualize(record[0])
     for i in range (3):
-        print(record[2 * i + 1]) # print action
-        print(record[2 * i + 2]) # print resulting state
+        print("Action: " + record[2 * i + 1]) # print action
+        print("State: " + record[2 * i + 2]) # print resulting state
         cube_visualize(record[2 * i + 2])
 
 

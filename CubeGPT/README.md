@@ -66,7 +66,7 @@
     - \<internal\_to\_color\>:
         - Inverse of \<color\_to\_internal\>.
     - \<cube\_permute\>:
-        - Assuming using internal representation of cube state.
+        - Assuming using internal representation of the cube state.
         - Input:
             - A sequence of action/permutation.
             - An initial state to start from.

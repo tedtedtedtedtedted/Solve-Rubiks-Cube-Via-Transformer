@@ -488,6 +488,22 @@ if __name__ == "__main__":
         print("State: " + record[2 * i + 2]) # print resulting state
         cube_visualize(record[2 * i + 2])
 
+    print()
+    print()
+    print()
+    print("Interactive mode:")
+    curr_state = init_state("haha")
+    print("State: " + curr_state)
+    cube_visualize(curr_state)
+    while True:
+        user_input = input("Enter an action: ")
+        if user_input == "quit":
+            break
+        curr_state = cube_permute(curr_state, user_input)
+        print("State: " + curr_state)
+        cube_visualize(curr_state)
+
+
 
     #print(record)
     #print(color_to_internal(init_state("haha")))

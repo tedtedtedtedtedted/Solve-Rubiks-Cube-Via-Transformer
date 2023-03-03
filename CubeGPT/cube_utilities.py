@@ -478,12 +478,14 @@ if __name__ == "__main__":
     #print(state)
     #print("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB")
     #print(cube_permute("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB", "B"))
-   
+  
 
-    record = challenge_generator(3, "haha", False)
+    num_actions_generated = 20 
+    print("Randomly generated 3 permutations and the whole sequence of states and actions:")
+    record = challenge_generator(num_actions_generated, "haha", False)
     print("State: " + record[0])
     cube_visualize(record[0])
-    for i in range (3):
+    for i in range (num_actions_generated):
         print("Action: " + record[2 * i + 1]) # print action
         print("State: " + record[2 * i + 2]) # print resulting state
         cube_visualize(record[2 * i + 2])

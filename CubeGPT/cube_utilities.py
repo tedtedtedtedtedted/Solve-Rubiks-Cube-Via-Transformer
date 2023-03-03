@@ -428,6 +428,42 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
 
 
 
+
+def cube_visualize(state: str):
+    cube_color_codes = {                                                          
+        'Y': "\033[37m",
+        'W': "", 
+        'O': "\033[32m", 
+        'R': "\033[31m",
+        'G': "\033[33m",
+        'B': "\033[34m"
+    }   
+
+    cube_layout = [
+        [' ', ' ', ' ', ' ', state[0], state[1], state[2], ' ', ' ', ' '],
+        [' ', ' ', ' ', ' ', state[3], state[4], state[5], ' ', ' ', ' '],
+        [' ', ' ', ' ', ' ', state[6], state[7], state[8], ' ', ' ', ' '],
+        [' ', state[36], state[37], state[38], state[18], state[19], state[20], state[45], state[46], state[47], state[27], state[28], state[29]],
+        [' ', state[39], state[40], state[41], state[21], state[22], state[23], state[48], state[49], state[50], state[30], state[31], state[32]],
+        [' ', state[42], state[43], state[44], state[24], state[25], state[26], state[51], state[52], state[53], state[33], state[34], state[35]],
+        [' ', ' ', ' ', ' ', state[9], state[10], state[11], ' ', ' ', ' '],
+        [' ', ' ', ' ', ' ', state[12], state[13], state[14], ' ', ' ', ' '],
+        [' ', ' ', ' ', ' ', state[15], state[16], state[17], ' ', ' ', ' ']
+    ]
+
+    # Display cube:
+    for row in cube_layout:
+        for entry in row:
+            if entry == ' ':
+                print('  ', end='')
+            else:
+                print(cube_color_codes[entry] + '██' + '\033[0m', end='')
+        print()
+
+
+
+
+
 if __name__ == "__main__":
     #state = init_state("haha")
     #print(state)
@@ -442,7 +478,19 @@ if __name__ == "__main__":
     #print(state)
     #print("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB")
     #print(cube_permute("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB", "B"))
-    record = challenge_generator(100, "haha", False)
-    print(record)
-    print(color_to_internal(init_state("haha")))
-    print(internal_to_color(color_to_internal(init_state("haha"))))
+   
+
+    record = challenge_generator(3, "haha", False)
+    print(record[0])
+    cube_visualize(record[0])
+    for i in range (3):
+        print(record[2 * i + 1]) # print action
+        print(record[2 * i + 2]) # print resulting state
+        cube_visualize(record[2 * i + 2])
+
+
+    #print(record)
+    #print(color_to_internal(init_state("haha")))
+    #print(internal_to_color(color_to_internal(init_state("haha"))))
+    #print(init_state("haha"))
+    #cube_visualize(init_state("haha"))

@@ -481,7 +481,7 @@ if __name__ == "__main__":
   
 
     num_actions_generated = 20 
-    print("Randomly generated 3 permutations and the whole sequence of states and actions:")
+    print("Randomly generated " + str(num_actions_generated) + " permutations and the whole sequence of states and actions:")
     record = challenge_generator(num_actions_generated, "haha", False)
     print("State: " + record[0])
     cube_visualize(record[0])

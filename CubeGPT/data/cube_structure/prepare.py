@@ -16,28 +16,38 @@ import pickle
 import requests
 import numpy as np
 
-# download the tiny shakespeare dataset
+# Download the tiny cube-structure dataset
 input_file_path = os.path.join(os.path.dirname(__file__), 'input.txt')
-if not os.path.exists(input_file_path):
-    data_url = 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt'
-    with open(input_file_path, 'w') as f:
-        f.write(requests.get(data_url).text)
 
 with open(input_file_path, 'r') as f:
     data = f.read()
-print(f"length of dataset in characters: {len(data):,}")
+# print(f"length of dataset in characters: {len(data):,}")
 
 # get all the unique characters that occur in this text
-chars = sorted(list(set(data)))
-vocab_size = len(chars)
-print("all the unique characters:", ''.join(chars))
-print(f"vocab size: {vocab_size:,}")
+#chars = sorted(list(set(data)))
+#tokens_char = # TODO: Char tokens can also try.
+tokens_cube = ["YOG", "YO", "YOB", "YG", "Y", "YB", "YRG", "YR", "YRB", "OG", "O", "OB", "G", "B", "RG", "R", "RB", "WOG", "WO", "WOB", "WG", "W", "WB", "WRG", "WR", "WRB",
+               "OGY", "OY", "OBY", "GY",      "BY", "RGY", "RY", "RBY", "GO",      "BO",           "GR",      "BR", "OGW", "OW", "OBW", "GW",      "BW", "RGW", "RW", "RBW",
+               "GYO",       "BYO",                  "GYR",       "BYR",                                             "GWO",       "BWO",                  "GWR",       "BWR",
+               "YGO",       "YBO",                  "YGR",       "YBR",                                             "WGO",       "WBO",                  "WGR",       "WBR",
+               "OYG",       "OYB",                  "RYG",       "RYB",                                             "OWG",       "OWB",                  "RWG",       "RWB",
+               "GOY",       "BOY",                  "GRY",       "BRY",                                             "GOW",       "BOW",                  "GRW",       "BRW",
+               "U", "D", "F", "B", "L", "R", "V", "H", "S",
+               "u", "d", "f", "b", "l", "r", "v", "h", "s",
+               "\n"
+               ] # Cube-color tokens. 
+
+# TODO: How does trainner know tokens are NOT char-level?
+tokens_size = len(tokens_cube)
+#print("all the unique tokens:", ''.join(tokens))
+#print(f"vocab size: {vocab_size:,}")
 
 # create a mapping from characters to integers
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
+stoi = { ch:i for i,ch in enumerate(tokens_cube) }
+itos = { i:ch for i,ch in enumerate(tokens_cube) }
 def encode(s):
-    return [stoi[c] for c in s] # encoder: take a string, output a list of integers
+    s_list = (s.strip()).split(" ")
+    return [stoi[c] for c in s_list] # encoder: take a string, output a list of integers # TODO: WB end-of-line character?
 def decode(l):
     ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
 
@@ -60,7 +70,7 @@ val_ids.tofile(os.path.join(os.path.dirname(__file__), 'val.bin'))
 
 # save the meta information as well, to help us encode/decode later
 meta = {
-    'vocab_size': vocab_size,
+    'vocab_size': tokens_size, # TODO: Maybe future change the name?
     'itos': itos,
     'stoi': stoi,
 }

@@ -414,13 +414,21 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
         for i in range(100): # Ensure a very random starting state.
             curr_state = cube_permute(curr_state, actions_permute_init_state[i]) 
 
+    actions_for_record = random.choices(actions, k=n)
     record = [""] * (2 * n + 1)
     record[0] = curr_state
-
-    actions_for_record = random.choices(actions, k=n)
     for i in range(n):
         record[2 * i + 1] = actions_for_record[i]
         record[2 * i + 2] = cube_permute(record[2 * i], actions_for_record[i]) # Don't directly use <cube_permute_single>!
+
+
+    # Convert <record> to internal representation:
+    if repr_mode == "internal_repr":
+        record[0] = " " + " ".join(color_to_internal(record[0])) + " "
+        for i in range(n):
+            record[2 * i + 1] = " " + record[2 * i + 1] + " "
+            record[2 * i + 2] = " " + " ".join(color_to_internal(record[2 * i + 2])) + " "
+    
         
 
     # Return type: List of states (color repr so str) and actions (str).
@@ -464,7 +472,29 @@ def cube_visualize(state: str):
 
 
 
+def write_cube_structure_data_to_file(n: int):
+    data = challenge_generator(n, "internal_repr", False)
+    with open("./data/cube_structure/input.txt", "a") as file:
+        file.truncate(0)
+        file.write(data[0] + "\n") 
+        for i in range(n):
+            file.write(data[2 * i + 1] + "\n")
+            file.write(data[2 * i + 2] + "\n")
+
+
+
+
+
 if __name__ == "__main__":
+
+    #print(challenge_generator(5, "internal_repr", False))
+    write_cube_structure_data_to_file(10000) # TODO: Future pass file path.
+
+
+
+
+
+
     #state = init_state("haha")
     #print(state)
     #state = cube_permute(state, "u")
@@ -480,30 +510,30 @@ if __name__ == "__main__":
     #print(cube_permute("YYYYYYYYYWWWWWWWWWGGGOOOOOOBBBRRRRRRRRRGGGGGGOOOBBBBBB", "B"))
   
 
-    num_actions_generated = 20 
-    print("Randomly generated " + str(num_actions_generated) + " permutations and the whole sequence of states and actions:")
-    record = challenge_generator(num_actions_generated, "haha", False)
-    print("State: " + record[0])
-    cube_visualize(record[0])
-    for i in range (num_actions_generated):
-        print("Action: " + record[2 * i + 1]) # print action
-        print("State: " + record[2 * i + 2]) # print resulting state
-        cube_visualize(record[2 * i + 2])
-
-    print()
-    print()
-    print()
-    print("Interactive mode:")
-    curr_state = init_state("haha")
-    print("State: " + curr_state)
-    cube_visualize(curr_state)
-    while True:
-        user_input = input("Enter an action: ")
-        if user_input == "quit":
-            break
-        curr_state = cube_permute(curr_state, user_input)
-        print("State: " + curr_state)
-        cube_visualize(curr_state)
+    #num_actions_generated = 20 
+    #print("Randomly generated " + str(num_actions_generated) + " permutations and the whole sequence of states and actions:")
+    #record = challenge_generator(num_actions_generated, "haha", False)
+    #print("State: " + record[0])
+    #cube_visualize(record[0])
+    #for i in range (num_actions_generated):
+    #    print("Action: " + record[2 * i + 1]) # print action
+    #    print("State: " + record[2 * i + 2]) # print resulting state
+    #    cube_visualize(record[2 * i + 2])
+    #
+    #print()
+    #print()
+    #print()
+    #print("Interactive mode:")
+    #curr_state = init_state("haha")
+    #print("State: " + curr_state)
+    #cube_visualize(curr_state)
+    #while True:
+    #    user_input = input("Enter an action: ")
+    #    if user_input == "quit":
+    #        break
+    #    curr_state = cube_permute(curr_state, user_input)
+    #    print("State: " + curr_state)
+    #    cube_visualize(curr_state)
 
 
 

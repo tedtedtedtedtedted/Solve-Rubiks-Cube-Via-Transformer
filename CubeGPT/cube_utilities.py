@@ -122,7 +122,7 @@ def internal_to_color(internal_repr: list[str]):
     color_repr_list[53] = internal_repr[25][2]
 
     return "".join(color_repr_list)
-    
+
 
 
 def cube_permute(starting_state: str, moves: str):
@@ -348,10 +348,22 @@ def cube_permute(starting_state: str, moves: str):
 
     for move in stupid_moves:
         curr_state = cube_permute_single(curr_state, move)
-    return curr_state 
+    return curr_state
 
 
 
+def internal_cube_permute(starting_state: str, moves: str):
+    """
+    - Assuming internal representation of cube state (added for convenience)
+    - Input:
+        - An starting state to start from.
+        - A sequence of permutations.
+    - Output:
+        - An arrived final state.
+    """
+    internal_state = internal_to_color(starting_state)
+    permuted_cube = cube_permute(internal_state, moves)
+    return color_to_internal(permuted_cube)
 
 
 

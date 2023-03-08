@@ -31,7 +31,7 @@ class Policy:
 
 class RandomPolicy(Policy):
     """A policy that takes random moves"""
-    def __init__(self, epsilon=0) -> None:
+    def __init__(self) -> None:
         super().__init__(1)
 
 class OnPolicyTransformer(Policy):

@@ -56,7 +56,7 @@ class Agent:
         # as well as to avoid the more expensive appends.
         learning_history += [''] * (self.episode_length * 2 - 1)
 
-        for i in range(self.episode_length):
+        for i in range(1, 1 + self.episode_length):
             current_state = learning_history[2 * i - 1]
             if current_state == init_state("internal_repr"):
                 # We have solved the cube, so do nothing now.

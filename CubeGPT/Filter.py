@@ -28,13 +28,13 @@ class Filter:
         raise NotImplementedError
 
 
-class NaiveFilter:
+class NaiveFilter(Filter):
     def _is_filtered(self, input_data):
         """A filter that does nothing, but remove unsuccessful attempts"""
         return False
 
 
-class AutoEncoderFilter:
+class AutoEncoderFilter(Filter):
     """Trains an autoencoder to compress the learning history along side the
     transformer, and uses its current performance as a measure of complexity,
     filtering if it passes some threshold."""

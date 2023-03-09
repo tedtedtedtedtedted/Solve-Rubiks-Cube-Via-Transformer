@@ -2,6 +2,11 @@ from Filter import Filter
 from Policy import Policy
 from cube_utilities import challenge_generator, init_state, internal_cube_permute
 
+import torch
+import os
+from model import GPT, GPTConfig
+import subprocess
+
 class Agent:
     def __init__(self, filter: Filter, policy: Policy, episode_length: int, difficulty_scheduler: function, file_name: str):
         """
@@ -18,6 +23,13 @@ class Agent:
         self.episode_length = episode_length
         self.file_name = file_name
         self.num_iterations_ran = 0
+        self.model = None
+        """
+        We want model to support two tasks:
+        
+        model.train: Train on some data
+        model.generate: Output moves
+        """
 
     def consolidate(self, num_iterations: int):
         """Run the consolidation step of the algorithm
@@ -28,7 +40,29 @@ class Agent:
 
     def train(self):
         """Train the model on the data in self.file_name"""
-        # TODO: Do the training
+        # data = load_file(self.file_name)
+        command_prepare_data = "python data/cube_structure/prepare.py"
+
+        # Train the model on the data
+        command = """python train.py config/train_shakespeare_char.py --device=cpu --compile=False
+        --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4
+        --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0"""
+        output = subprocess.check_output(command, shell=True)
+        print(output.decode())
+
+        # Update the model
+        self.update_model('ckpt.pt')
+
+    def update_model(self, file_name):
+        """Update self.model using the checkpoint in file_name
+        """
+        ckpt_path = os.path.join('out', 'ckpt.pt')
+        checkpoint = torch.load(ckpt_path, map_location=device)
+        checkpoint_model_args = checkpoint['model_args']
+        for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
+            model_args[k] = checkpoint_model_args[k]
+        gptconf = GPTConfig(**model_args)
+        self.model = GPT(gptconf)
 
     def generate_learning_history(self, num_iterations: int):
         """Repeatedly play for a specific number of iterations, then filter out the learning history
@@ -56,17 +90,17 @@ class Agent:
         # as well as to avoid the more expensive appends.
         learning_history += [''] * (self.episode_length * 2 - 1)
 
+        current_state = start_state
         for i in range(1, 1 + self.episode_length):
-            current_state = learning_history[2 * i - 1]
             if current_state == init_state("internal_repr"):
                 # We have solved the cube, so do nothing now.
                 learning_history[2 * i + 1] = current_state
             else:
                 action = self.policy.next_action(current_state)
-                next_state = internal_cube_permute(current_state, [action])
+                current_state = internal_cube_permute(current_state, [action])
 
                 learning_history[2 * i] = action
-                learning_history[2 * i + 1] = next_state
+                learning_history[2 * i + 1] = current_state
 
 
         # TODO: Write the learning history to the file self.file_name.

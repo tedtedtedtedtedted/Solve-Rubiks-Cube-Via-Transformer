@@ -40,7 +40,7 @@ if init_from == 'resume':
     gptconf = GPTConfig(**checkpoint['model_args'])
     model = GPT(gptconf)
     state_dict = checkpoint['model']
-    unwanted_prefix = '_orig_mod.'
+    unwanted_prefix = '_orig_mod.' # Ted: As commented by Andrej Karpathy, this is due to a bug yet to be fixed.
     for k,v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)

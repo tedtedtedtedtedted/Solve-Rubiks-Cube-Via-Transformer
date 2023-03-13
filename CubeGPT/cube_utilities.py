@@ -171,7 +171,7 @@ def cube_permute(starting_state: str, moves: str):
         state_transformed = list(state)
     
         match move: 
-            case "U": 
+            case "U-": 
                 # Convert to color repr then perform operation then convert back to internal repr. 
                 # Stribe change:
                 state_transformed[20] = state[47]
@@ -194,7 +194,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(0)
 
-            case "D": 
+            case "D-": 
                 state_transformed[24] = state[42]
                 state_transformed[25] = state[43]
                 state_transformed[26] = state[44]
@@ -214,7 +214,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(9)
 
-            case "F": 
+            case "F-": 
                 state_transformed[6] = state[44]
                 state_transformed[7] = state[41]
                 state_transformed[8] = state[38]
@@ -234,7 +234,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(18)
 
-            case "B":
+            case "B-":
                 state_transformed[2] = state[53]
                 state_transformed[1] = state[50]
                 state_transformed[0] = state[47]
@@ -254,7 +254,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(27)
 
-            case "L":
+            case "L-":
                 state_transformed[0] = state[35]
                 state_transformed[3] = state[32]
                 state_transformed[6] = state[29]
@@ -274,7 +274,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(36)
 
-            case "R":
+            case "R-":
                 state_transformed[8] = state[26]
                 state_transformed[5] = state[23]
                 state_transformed[2] = state[20]
@@ -294,7 +294,7 @@ def cube_permute(starting_state: str, moves: str):
                 # Face rotation:
                 rotate_face_clockwise(45)
 
-            case "V":
+            case "V-":
                 state_transformed[1] = state[34]
                 state_transformed[4] = state[31]
                 state_transformed[7] = state[28]
@@ -310,7 +310,7 @@ def cube_permute(starting_state: str, moves: str):
                 state_transformed[34] = state[10]
                 state_transformed[31] = state[13]
                 state_transformed[28] = state[16]  
-            case "H":
+            case "H-":
                 state_transformed[23] = state[50]
                 state_transformed[22] = state[49]
                 state_transformed[21] = state[48]
@@ -326,7 +326,7 @@ def cube_permute(starting_state: str, moves: str):
                 state_transformed[50] = state[32]
                 state_transformed[49] = state[31]
                 state_transformed[48] = state[30]
-            case "S":
+            case "S-":
                 state_transformed[3] = state[43]
                 state_transformed[4] = state[40]
                 state_transformed[5] = state[37]
@@ -420,7 +420,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
     """
     
     curr_state = init_state(repr_mode) # For now assumed color repr. // TODO: Later need internal repr.
-    actions = ["U", "u", "D", "d", "F", "f", "B", "b", "L", "l", "R", "r", "V", "v", "H", "h", "S", "s"]
+    actions = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
     if random_start:
         actions_permute_init_state = random.choices(actions, k=100)
         for i in range(100): # Ensure a very random starting state.

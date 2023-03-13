@@ -32,8 +32,8 @@ tokens_cube = ["YOG", "YO", "YOB", "YG", "Y", "YB", "YRG", "YR", "YRB", "OG", "O
                "YGO",       "YBO",                  "YGR",       "YBR",                                             "WGO",       "WBO",                  "WGR",       "WBR",
                "OYG",       "OYB",                  "RYG",       "RYB",                                             "OWG",       "OWB",                  "RWG",       "RWB",
                "GOY",       "BOY",                  "GRY",       "BRY",                                             "GOW",       "BOW",                  "GRW",       "BRW",
-               "U", "D", "F", "B", "L", "R", "V", "H", "S",
-               "u", "d", "f", "b", "l", "r", "v", "h", "s",
+               "U-", "D-", "F-", "B-", "L-", "R-", "V-", "H-", "S-",
+               "u-", "d-", "f-", "b-", "l-", "r-", "v-", "h-", "s-",
                "\n"
                ] # Cube-color tokens. 
 

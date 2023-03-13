@@ -25,7 +25,7 @@ for arg in sys.argv[1:]:
         print(f"Overriding config with {config_file}:")
         with open(config_file) as f:
             print(f.read())
-        exec(open(config_file).read())
+        exec(open(config_file).read()) # Ted: <exec> essentially inherits all variables in the read external file, just like we declared them here.
     else:
         # assume it's a --key=value argument
         assert arg.startswith('--')

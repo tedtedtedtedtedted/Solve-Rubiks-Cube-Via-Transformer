@@ -102,5 +102,15 @@ class Agent:
                 learning_history[2 * i] = action
                 learning_history[2 * i + 1] = current_state
 
+    def predict(self, problem):
+        """
+        - Given a problem (start_state, end_state), predict the solution.
+        - Will use correction on state tokens so really generated action tokens are what matter.
+        - Most likely still predict state token because chain-of-thought (i.e. ask model to explain itself is good.
+        """
+
+
+
+
 
         # TODO: Write the learning history to the file self.file_name.

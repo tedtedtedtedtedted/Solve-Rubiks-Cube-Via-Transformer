@@ -1,11 +1,8 @@
 from Filter import Filter
 from Policy import Policy
+from train_cube import train_from_scratch
 from cube_utilities import challenge_generator, init_state, internal_cube_permute
 
-import torch
-import os
-from model import GPT, GPTConfig
-import subprocess
 
 class Agent:
     def __init__(self, filter: Filter, policy: Policy, episode_length: int, difficulty_scheduler: function, file_name: str):
@@ -24,12 +21,6 @@ class Agent:
         self.file_name = file_name
         self.num_iterations_ran = 0
         self.model = None
-        """
-        We want model to support two tasks:
-        
-        model.train: Train on some data
-        model.generate: Output moves
-        """
 
     def consolidate(self, num_iterations: int):
         """Run the consolidation step of the algorithm
@@ -40,29 +31,7 @@ class Agent:
 
     def train(self):
         """Train the model on the data in self.file_name"""
-        # data = load_file(self.file_name)
-        command_prepare_data = "python data/cube_structure/prepare.py"
-
-        # Train the model on the data
-        command = """python train.py config/train_shakespeare_char.py --device=cpu --compile=False
-        --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4
-        --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0"""
-        output = subprocess.check_output(command, shell=True)
-        print(output.decode())
-
-        # Update the model
-        self.update_model('ckpt.pt')
-
-    def update_model(self, file_name):
-        """Update self.model using the checkpoint in file_name
-        """
-        ckpt_path = os.path.join('out', 'ckpt.pt')
-        checkpoint = torch.load(ckpt_path, map_location=device)
-        checkpoint_model_args = checkpoint['model_args']
-        for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
-            model_args[k] = checkpoint_model_args[k]
-        gptconf = GPTConfig(**model_args)
-        self.model = GPT(gptconf)
+        self.model = train_from_scratch()
 
     def generate_learning_history(self, num_iterations: int):
         """Repeatedly play for a specific number of iterations, then filter out the learning history
@@ -102,15 +71,13 @@ class Agent:
                 learning_history[2 * i] = action
                 learning_history[2 * i + 1] = current_state
 
+        # TODO: Write the learning history to the file self.file_name.
+        return
+
     def predict(self, problem):
         """
         - Given a problem (start_state, end_state), predict the solution.
         - Will use correction on state tokens so really generated action tokens are what matter.
         - Most likely still predict state token because chain-of-thought (i.e. ask model to explain itself is good.
         """
-
-
-
-
-
-        # TODO: Write the learning history to the file self.file_name.
+        pass

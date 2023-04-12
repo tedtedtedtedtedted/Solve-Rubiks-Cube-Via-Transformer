@@ -10,21 +10,17 @@ states.extend(colors)
 
 import random
 
-def pick_action(action):
-    """
-    - Input: (int) Tokenized action outputted by the model
-    - Output: (str) The action string
-    """
-    return actions[max(0, 1 - round(action))]
+def get_action_list():
+    return actions
 
 def tokenize_action(action):
     """
     - Input: (str) An action
     - Output: (int) A tokenized representation
     """
-    # I'm not sure if this is necessary, but just in case,
-    # make the output negative to use different tokenizations than the states
-    return - 1 - actions.index(action.strip())
+    action_vector = [0] * len(actions)
+    action_vector[actions.index(action.strip())] = 1
+    return action_vector
 
 
 def tokenize_state(state):

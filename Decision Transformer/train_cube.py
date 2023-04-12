@@ -88,7 +88,7 @@ class DecisionTransformerDataCollator:
     return_tensors: str = "pt"
     max_len: int = 30 #subsets of the episode we use for training
     state_dim: int = 26  # size of state space, 26 squares per state
-    act_dim: int = 1  # size of action space
+    act_dim: int = 19  # size of action space
     max_ep_len: int = 100 # max episode length in the dataset
     scale: float = 1000.0  # normalization of rewards/returns
     p_sample: np.array = None  # a distribution to take account trajectory lengths
@@ -139,7 +139,7 @@ class DecisionTransformerDataCollator:
 
             # get sequences from dataset
             s.append(np.array(state_trajectory[si : si + self.max_len]).reshape(1, -1, self.state_dim))
-            a.append(np.array(action_trajectory[si : si + self.max_len]).reshape(1, -1, 1))
+            a.append(np.array(action_trajectory[si : si + self.max_len]).reshape(1, -1, self.act_dim))
             r.append(np.array(reward_trajectory[si : si + self.max_len]).reshape(1, -1, 1))
 
             d.append(np.array(dones[si : si + self.max_len]).reshape(1, -1))
@@ -198,10 +198,9 @@ class TrainableDT(DecisionTransformerModel):
         act_dim = action_preds.shape[2]
         action_preds = action_preds.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
         action_targets = action_targets.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
-        
+
         loss = torch.nn.CrossEntropyLoss()
 
-        
         return {"loss": loss(action_preds, action_targets)}
 
     def original_forward(self, **kwargs):
@@ -294,7 +293,7 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
 
 def run_test(model, num_shuffles, device):
     state_dim = 26  # Number of tokens in every state
-    act_dim = 1  # Number of tokens in every action
+    act_dim = 19  # Number of tokens in every action
     max_ep_len = 30
     scale = 1
     target_return = 1000 - num_shuffles   # We get 1000 reward at the end, and -1 otherwise
@@ -323,7 +322,7 @@ def run_test(model, num_shuffles, device):
         actions[-1] = action
         action = action.detach().cpu().numpy()
 
-        internal_state = internal_cube_permute(internal_state, [pick_action(action[0])])
+        internal_state = internal_cube_permute(internal_state, np.random.choice(get_action_list(), p=action))
         state = np.array(tokenize_state(" ".join(internal_state)))
         done = is_done(internal_state)
         if done:

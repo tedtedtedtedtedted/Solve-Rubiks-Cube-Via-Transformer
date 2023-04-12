@@ -220,7 +220,7 @@ def train(config, start_from_scratch):
     torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
     # Define the number of examples to generate
-    num_examples = 1000
+    num_examples = 10000
     len_examples = 20
 
     # Generate the challenges
@@ -254,11 +254,106 @@ def train(config, start_from_scratch):
     )
 
     trainer.train()
-    torch.save(model.state_dict(), "trained_model")
+    trainer.save_model("trained_model")
     breakpoint()
 
     return model
 
+def get_action(model, states, actions, rewards, returns_to_go, timesteps):
+    # This implementation does not condition on past rewards
+
+    states = states.reshape(1, -1, model.config.state_dim)
+    actions = actions.reshape(1, -1, model.config.act_dim)
+    returns_to_go = returns_to_go.reshape(1, -1, 1)
+    timesteps = timesteps.reshape(1, -1)
+
+    states = states[:, -model.config.max_length :]
+    actions = actions[:, -model.config.max_length :]
+    returns_to_go = returns_to_go[:, -model.config.max_length :]
+    timesteps = timesteps[:, -model.config.max_length :]
+    padding = model.config.max_length - states.shape[1]
+    # pad all tokens to sequence length
+    attention_mask = torch.cat([torch.zeros(padding), torch.ones(states.shape[1])])
+    attention_mask = attention_mask.to(dtype=torch.long).reshape(1, -1)
+    states = torch.cat([torch.zeros((1, padding, model.config.state_dim)), states], dim=1).float()
+    actions = torch.cat([torch.zeros((1, padding, model.config.act_dim)), actions], dim=1).float()
+    returns_to_go = torch.cat([torch.zeros((1, padding, 1)), returns_to_go], dim=1).float()
+    timesteps = torch.cat([torch.zeros((1, padding), dtype=torch.long), timesteps], dim=1)
+
+    state_preds, action_preds, return_preds = model.original_forward(
+        states=states,
+        actions=actions,
+        rewards=rewards,
+        returns_to_go=returns_to_go,
+        timesteps=timesteps,
+        attention_mask=attention_mask,
+        return_dict=False,
+    )
+
+    return action_preds[0, -1]
+
+def run_test(model, num_shuffles, device):
+    state_dim = 26  # Number of tokens in every state
+    act_dim = 1  # Number of tokens in every action
+    max_ep_len = 30
+    scale = 1
+    target_return = 1000 - num_shuffles   # We get 1000 reward at the end, and -1 otherwise
+    episode_return, episode_length = 0, 0
+    internal_state = challenge_generator(num_shuffles, 'internal_repr', False)[-1].strip().split(" ")
+    state = np.array(tokenize_state(" ".join(internal_state)))
+    target_return = torch.tensor(target_return, device=device, dtype=torch.float32).reshape(1, 1)
+
+    states = torch.from_numpy(state).reshape(1, state_dim).to(device=device, dtype=torch.float32)
+    actions = torch.zeros((0, act_dim), device=device, dtype=torch.float32)
+    rewards = torch.zeros(0, device=device, dtype=torch.float32)
+
+    timesteps = torch.tensor(0, device=device, dtype=torch.long).reshape(1, 1)
+    for t in range(max_ep_len):
+        actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
+        rewards = torch.cat([rewards, torch.zeros(1, device=device)])
+
+        action = get_action(
+            model,
+            states,
+            actions,
+            rewards,
+            target_return,
+            timesteps,
+        )
+        actions[-1] = action
+        action = action.detach().cpu().numpy()
+
+        internal_state = internal_cube_permute(internal_state, [pick_action(action[0])])
+        state = np.array(tokenize_state(" ".join(internal_state)))
+        done = is_done(internal_state)
+        if done:
+            reward = 1000
+        else:
+            reward = -1
+
+        cur_state = torch.from_numpy(state).to(device=device).reshape(1, state_dim)
+        states = torch.cat([states, cur_state], dim=0)
+        rewards[-1] = reward
+
+        pred_return = target_return[0, -1] - (reward / scale)
+        target_return = torch.cat([target_return, pred_return.reshape(1, 1)], dim=1)
+        timesteps = torch.cat([timesteps, torch.ones((1, 1), device=device, dtype=torch.long) * (t + 1)], dim=1)
+
+        episode_return += reward
+        episode_length += 1
+
+        if done:
+            break
+
+    breakpoint()
+
+    logging.info(states)
+    logging.info(actions)
+    logging.info(rewards)
+
 
 if __name__ == '__main__':
     train_from_scratch()
+
+    # model = TrainableDT.from_pretrained("trained_model")
+    # run_test(model, 5, "cpu")

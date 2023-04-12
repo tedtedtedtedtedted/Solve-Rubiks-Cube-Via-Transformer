@@ -10,6 +10,13 @@ states.extend(colors)
 
 import random
 
+def pick_action(action):
+    """
+    - Input: (int) Tokenized action outputted by the model
+    - Output: (str) The action string
+    """
+    return actions[max(0, 1 - round(action))]
+
 def tokenize_action(action):
     """
     - Input: (str) An action
@@ -193,7 +200,6 @@ def cube_permute(starting_state: str, moves: str):
 
 
         state_transformed = list(state)
-    
         match move: 
             case "U-": 
                 # Convert to color repr then perform operation then convert back to internal repr. 
@@ -408,7 +414,7 @@ def stupidize_permutations(moves: str):
             stupid_moves.append(moves[i].upper())
         else:
              stupid_moves.append(moves[i])
-    return "".join(stupid_moves)
+    return stupid_moves
 
 
 
@@ -430,7 +436,17 @@ def init_state(repr_mode: str):
         for i in range(9):
             state[face * 9 + i] = color
 
-    return "".join(state)
+    if repr_mode == 'color_repr':
+        return "".join(state)
+    else:
+        return color_to_internal("".join(state))
+
+def is_done(state):
+    """
+    - Input: (str) A state in the internal representation that
+    - Output: (bool) Whether it is the end state
+    """
+    return state == init_state('internal_repr')
 
 
 def challenge_generator(n: int, repr_mode: str, random_start: bool):
@@ -443,7 +459,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
         - A (internal or color representation) sequence of states and actions, where randomness from actions.
     """
     
-    curr_state = init_state(repr_mode) # For now assumed color repr. // TODO: Later need internal repr.
+    curr_state = init_state('color_repr') # Keep this as color_repr
     actions = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
     if random_start:
         actions_permute_init_state = random.choices(actions, k=100)
@@ -455,8 +471,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
     record[0] = curr_state
     for i in range(n):
         record[2 * i + 1] = actions_for_record[i]
-        record[2 * i + 2] = cube_permute(record[2 * i], actions_for_record[i]) # Don't directly use <cube_permute_single>!
-
+        record[2 * i + 2] = cube_permute(record[2 * i], [actions_for_record[i]]) # Don't directly use <cube_permute_single>!
 
     # Convert <record> to internal representation:
     if repr_mode == "internal_repr":
@@ -464,7 +479,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
         for i in range(n):
             record[2 * i + 1] = " " + record[2 * i + 1] + " "
             record[2 * i + 2] = " " + " ".join(color_to_internal(record[2 * i + 2])) + " "
-
+    
     # Return type: List of states (color repr so str) and actions (str).
     return record 
 

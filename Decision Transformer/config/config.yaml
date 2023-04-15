@@ -6,11 +6,11 @@ n_heads: 2
 n_inner: 4
 
 num_examples: 1000
-len_examples: 20
+len_examples: 5
 
 num_epochs: 1
 batch_size: 64
-learning_rate: 1
+learning_rate: 1e-4
 decay_rate: 0
 
 # Configurations for hydra itself
@@ -18,4 +18,4 @@ hydra:
   run:
     dir: ${oc.env:OUTPUT_DIR,./outputs}/${hydra.job.config_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
   job:
-    chdir: True
+    chdir: False

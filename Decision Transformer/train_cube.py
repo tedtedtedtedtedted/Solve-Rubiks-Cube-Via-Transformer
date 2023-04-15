@@ -255,13 +255,26 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
         return_dict=False,
     )
 
-    
-
     return action_preds[0, -1]
 
+def run_tests(model, device):
+    num_per_shuffle = 10
+    logging.info(f"Running {num_per_shuffle} tests per shuffle.")
+    for num_shuffle in {1, 2, 3, 5, 10, 20}:
+        total_reward = 0
+        num_times_solved = 0
+        for _ in range(num_per_shuffle):
+            is_solved, reward = run_test(model, num_shuffle, device)
+            num_times_solved += is_solved
+            total_reward += reward
+        average_reward = total_reward / num_per_shuffle
+        logging.info(f"number of shuffles: {num_shuffle} - number of times solved: {num_times_solved}, average reward: {average_reward}")
+
+
+
 def run_test(model, num_shuffles, device):
-    state_dim = 26  # Number of tokens in every state
-    act_dim = 19  # Number of tokens in every action
+    state_dim = model.config.state_dim  # Number of tokens in every state
+    act_dim = model.config.act_dim # Number of tokens in every action
     max_ep_len = 30
     scale = 1
     target_return = 10 - num_shuffles   # We get 10 reward at the end, and -1 otherwise
@@ -313,15 +326,15 @@ def run_test(model, num_shuffles, device):
         if done:
             break
 
-    breakpoint()
+    logging.debug(states)
+    logging.debug(actions)
+    logging.debug(rewards)
 
-    logging.info(states)
-    logging.info(actions)
-    logging.info(rewards)
+    return rewards[-1] == 10, sum(rewards)
 
 
 if __name__ == '__main__':
     train_from_scratch()
 
-    # model = TrainableDT.from_pretrained("trained_model")
-    # run_test(model, 1, "cpu")
+    model = TrainableDT.from_pretrained("./trained_model")
+    run_tests(model, "cpu")

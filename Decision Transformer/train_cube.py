@@ -17,58 +17,6 @@ from cube_utilities import *
 
 import hydra
 
-
-def create_model_from_scratch(model_args, meta_vocab_size):
-    """Creates a new model to train"""
-
-
-
-def load_model(model_args, config):
-    """Loads an old model"""
-    
-
-# helps estimate an arbitrarily accurate loss over either split using many batches
-@torch.no_grad()
-def estimate_loss(model, context, eval_iters):
-    # TODO: Complete this
-
-    """ Taken from CubeGPT if useful here
-    out = {}
-    model.eval()
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-            with context:
-                _, loss = model(X, Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
-    model.train()
-    return out
-    """
-
-
-# learning rate decay scheduler (cosine with warmup) # Ted: Dynamic learning rate IMO.
-def get_lr(it, learning_rate, warmup_iters, lr_decay_iters, min_lr):
-    # 1) linear warmup for warmup_iters steps
-    if it < warmup_iters:
-        return learning_rate * it / warmup_iters
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it > lr_decay_iters:
-        return min_lr
-    # 3) in between, use cosine decay down to min learning rate
-    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-    assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
-
-
-def get_batch(data, device, block_size, batch_size):
-    """Get a batch from the inputted data.
-    This is modified to simply take in the array.
-    """
-
-
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def train_from_scratch(config):
     """hydra decorated functions can only take in one parameter.
@@ -115,24 +63,16 @@ class DecisionTransformerDataCollator:
 
     def __call__(self, features):
         batch_size = len(features)
-        # this is a bit of a hack to be able to sample of a non-uniform distribution
-        batch_inds = np.random.choice(
-            np.arange(self.n_traj),
-            size=batch_size,
-            replace=True,
-            p=self.p_sample,  # reweights so we sample according to timesteps
-        )
         # a batch of dataset features
         s, a, r, d, rtg, timesteps, mask = [], [], [], [], [], [], []
-        
-        for ind in batch_inds:
+        for state, action in features:
             # for feature in features:
-            state_trajectory = self.states[int(ind)]
-            action_trajectory = self.actions[int(ind)]
-            si = random.randint(0, len(state_trajectory) - 1)
+            state_trajectory = state
+            action_trajectory = action
+            si = 0
 
             reward_trajectory = [-1 for _ in range(len(state_trajectory))]
-            reward_trajectory[-1] = 1000
+            reward_trajectory[-1] = 10
 
             dones = [False for _ in range(len(state_trajectory))]
             dones[-1] = True
@@ -155,6 +95,7 @@ class DecisionTransformerDataCollator:
                 rtg[-1] = np.concatenate([rtg[-1], np.zeros((1, 1, 1))], axis=1)
 
             # padding and state + reward normalization
+            # TODO: Check if we should we add back the normalization?
             tlen = s[-1].shape[1]
             s[-1] = np.concatenate([np.zeros((1, self.max_len - tlen, self.state_dim)), s[-1]], axis=1)
             a[-1] = np.concatenate(
@@ -200,7 +141,6 @@ class TrainableDT(DecisionTransformerModel):
         action_targets = action_targets.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
 
         loss = torch.nn.CrossEntropyLoss()
-
         return {"loss": loss(action_preds, action_targets)}
 
     def original_forward(self, **kwargs):
@@ -219,8 +159,8 @@ def train(config, start_from_scratch):
     torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
     # Define the number of examples to generate
-    num_examples = 10000
-    len_examples = 20
+    num_examples = 10
+    len_examples = 5
 
     # Generate the challenges
     challenges = [challenge_generator(len_examples, 'internal_repr', False)[::-1] + ["END"] for _ in range(num_examples)]
@@ -230,31 +170,41 @@ def train(config, start_from_scratch):
 
     collator = DecisionTransformerDataCollator(states, actions)
 
-    config = DecisionTransformerConfig(state_dim=collator.state_dim, act_dim=collator.act_dim)
+    config = DecisionTransformerConfig(
+        state_dim=collator.state_dim,
+        act_dim=collator.act_dim,
+        n_head=4,
+        n_inner=4
+    )
     model = TrainableDT(config)
 
     training_args = TrainingArguments(
         output_dir="output/",
         remove_unused_columns=False,
-        num_train_epochs=120,
+        num_train_epochs=50,
         per_device_train_batch_size=64,
-        learning_rate=1e-4,
-        weight_decay=1e-4,
+        learning_rate=1e-2,
+        weight_decay=1e-8,
         warmup_ratio=0.1,
         optim="adamw_torch",
-        max_grad_norm=0.25,
+        max_grad_norm=0.5,
+        logging_steps=10,
+        logging_dir="log"
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
         data_collator=collator,
-        train_dataset=challenges
+        train_dataset=[(s, a) for s in states for a in actions]
     )
 
-    trainer.train()
+    result = trainer.train()
     trainer.save_model("trained_model")
-    breakpoint()
+
+    logSave = open('lossoutput.txt', 'a')
+    logSave.write(str(trainer.state.log_history) + '\n')
+    logSave.close()
 
     return model
 
@@ -296,7 +246,7 @@ def run_test(model, num_shuffles, device):
     act_dim = 19  # Number of tokens in every action
     max_ep_len = 30
     scale = 1
-    target_return = 1000 - num_shuffles   # We get 1000 reward at the end, and -1 otherwise
+    target_return = 10 - num_shuffles   # We get 10 reward at the end, and -1 otherwise
     episode_return, episode_length = 0, 0
     internal_state = challenge_generator(num_shuffles, 'internal_repr', False)[-1].strip().split(" ")
     state = np.array(tokenize_state(" ".join(internal_state)))
@@ -322,11 +272,11 @@ def run_test(model, num_shuffles, device):
         actions[-1] = action
         action = action.detach().cpu().numpy()
 
-        internal_state = internal_cube_permute(internal_state, np.random.choice(get_action_list(), p=action))
+        internal_state = internal_cube_permute(internal_state, get_action_list()[np.argmax(action)])
         state = np.array(tokenize_state(" ".join(internal_state)))
         done = is_done(internal_state)
         if done:
-            reward = 1000
+            reward = 10
         else:
             reward = -1
 
@@ -355,4 +305,4 @@ if __name__ == '__main__':
     train_from_scratch()
 
     # model = TrainableDT.from_pretrained("trained_model")
-    # run_test(model, 5, "cpu")
+    # run_test(model, 1, "cpu")

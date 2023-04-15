@@ -91,8 +91,8 @@ def get_batch(data, device, block_size, batch_size):
     """
     # Ted: TODO: Below can be adjusted to learning history rows.
     # Ted: TODO: <block_size> is then likely to be dynamic and require padding. E.g. initially we need small block_size but later on maybe larger since challenges will get more and more difficult.
-    ix = torch.randint(len(data) - block_size, (batch_size,)) # Ted: Generate a random row tensor of dimension batch_size with value from 0 to <arg_1>.
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix]) # Ted: Stack into a batch tensor where starting positions are sampled from list <ix>.
+    ix = torch.randint(len(data) - block_size, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow.
+    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, block_size]; Stack into a batch tensor where starting positions are sampled from list <ix>.
     y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
     if 'cuda' in device:
         # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)

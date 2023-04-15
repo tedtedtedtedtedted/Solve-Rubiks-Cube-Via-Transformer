@@ -14,6 +14,9 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from data.cube_structure.prepare import stoi, itos # Ted: Python allows importing variables from another file! This is the tokenization. 
+from data.cube_structure.prepare import encode, decode
+from cube_utilities import internal_to_color, color_to_internal 
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -54,8 +57,16 @@ class CausalSelfAttention(nn.Module):
         if not self.flash:
             print("WARNING: using slow attention. Flash Attention atm needs PyTorch nightly and dropout=0.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                        .view(1, 1, config.block_size, config.block_size))
+            #self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
+            #                            .view(1, 1, config.block_size, config.block_size))
+           
+            # Ted: Below shift masking, assuming the first 28 tokens are not to predict, but rather given as puzzle context.
+            size_puzzle_tokens = 1 + 26 + 1
+            extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
+            mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)  
+            mask = mask.view(1, 1, config.block_size, config.block_size)
+            self.register_buffer("bias", mask)
+
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
@@ -69,10 +80,10 @@ class CausalSelfAttention(nn.Module):
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         if self.flash:
             # efficient attention using Flash Attention CUDA kernels
-            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout, is_causal=True)
+            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout, is_causal=True) # Ted: Why does NanoGPT set <attn_mask = None>? Because we use flash attention during inference time not training time.
         else:
             # manual implementation of attention
-            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # Ted: Dim: [batch_size, num_heads, seq_len, seq_leln].
             att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
@@ -108,7 +119,7 @@ class Block(nn.Module):
         self.mlp = MLP(config)
 
     def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
+        x = x + self.attn(self.ln_1(x)) # Ted: Skip connection.
         x = x + self.mlp(self.ln_2(x))
         return x
 
@@ -176,14 +187,14 @@ class GPT(nn.Module):
 
     def forward(self, idx, targets=None):
         device = idx.device
-        b, t = idx.size()
+        b, t = idx.size() # Ted: In "train_cube.py" <model(X, Y)>, <X> is <idx> here so training batch.
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t)
 
         # forward the GPT model itself
-        tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
+        tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd) # Ted: Before embedding [batch_size, seq_len]
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (1, t, n_embd)
-        x = self.transformer.drop(tok_emb + pos_emb)
+        x = self.transformer.drop(tok_emb + pos_emb) # Ted: Pytorch broadcast addition.
         for block in self.transformer.h:
             x = block(x)
         x = self.transformer.ln_f(x)
@@ -194,12 +205,12 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
-            logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
+            logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim # Ted: select last token of sequence.
             loss = None
 
         return logits, loss
 
-    def crop_block_size(self, block_size): # Ted: TODO: May crop this future, for now keep it!
+    def crop_block_size(self, block_size): # Ted: Need this to crop actually!!!
         # model surgery to decrease the block size if necessary
         # e.g. we may load the GPT2 pretrained model checkpoint (block size 1024)
         # but want to use a smaller block size for some smaller, simpler model
@@ -284,12 +295,21 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx, max_new_tokens=35, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
+    
+        assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input length is at least 1 + 26 + 1.
+        curr_state = idx[0].tolist()
+        curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
+        curr_state = decode(curr_state) # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
+        curr_state = internal_to_color(curr_state) # Ted: Need in color representation not internal representation, and in string format!
+
+
+
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
@@ -305,7 +325,18 @@ class GPT(nn.Module):
             probs = F.softmax(logits, dim=-1)
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)
-            # append sampled index to the running sequence and continue
-            idx = torch.cat((idx, idx_next), dim=1)
 
+            # append sampled index to the running sequence and continue
+            #idx = torch.cat((idx, idx_next), dim=1) # Ted: TODO: Found it! Autoregressive with transition function here!
+            move = idx_next  
+            if (idx_next not in action_space): # TODO: Define action space.
+                # TODO: Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry. 
+            else: # Valid action.
+                if (idx_next == 'DONE'):
+                    # TODO: Just return. 
+                else:
+                    # TODO: Concatenate.
+                    curr_state = cube_permute(curr_state, move) # Note <cube_permute> takes in color representation, not internal representation.
+                    idx = torch.cat()
+            
         return idx

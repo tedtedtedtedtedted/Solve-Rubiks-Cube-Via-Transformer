@@ -32,10 +32,22 @@ tokens_cube = ["YOG", "YO", "YOB", "YG", "Y", "YB", "YRG", "YR", "YRB", "OG", "O
                "YGO",       "YBO",                  "YGR",       "YBR",                                             "WGO",       "WBO",                  "WGR",       "WBR",
                "OYG",       "OYB",                  "RYG",       "RYB",                                             "OWG",       "OWB",                  "RWG",       "RWB",
                "GOY",       "BOY",                  "GRY",       "BRY",                                             "GOW",       "BOW",                  "GRW",       "BRW",
-               "U-", "D-", "F-", "B-", "L-", "R-", "V-", "H-", "S-",
+               "U-", "D-", "F-", "B-", "L-", "R-", "V-", "H-", "S-", # Actions.
                "u-", "d-", "f-", "b-", "l-", "r-", "v-", "h-", "s-",
-               "\n"
+               "DONE", # Also an action specifying done.
+               "I_SE", "I_SB" # Separators for state.
+               #"\n" # End of token. # TODO: Likely not necessary and be removed.
                ] # Cube-color tokens. 
+
+
+
+
+
+# TODO: Under this setting, cannot treat whole file as a big string.
+
+
+
+
 
 # TODO: How does trainner know tokens are NOT char-level?
 tokens_size = len(tokens_cube)
@@ -49,7 +61,8 @@ def encode(s):
     s_list = (s.strip()).split(" ")
     return [stoi[c] for c in s_list] # encoder: take a string, output a list of integers # TODO: WB end-of-line character?
 def decode(l):
-    ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+    #''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+    return ' '.join([itos[i] for i in l]) # Ted: Modified.
 
 # create the train and test splits
 n = len(data)

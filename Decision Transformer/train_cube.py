@@ -40,9 +40,12 @@ class DecisionTransformerDataCollator:
     max_ep_len: int = 100 # max episode length in the dataset
     scale: float = 1000.0  # normalization of rewards/returns
     p_sample: np.array = None  # a distribution to take account trajectory lengths
+    state_mean: np.array = None  # to store state means
+    state_std: np.array = None  # to store state stds
     n_traj: int = 0 # to store the number of trajectories in the dataset
 
-    def __init__(self, states, actions) -> None:
+    def __init__(self, states, actions, state_dim=26) -> None:
+        self.state_dim = state_dim
         self.states = states
         self.actions = actions
         # calculate dataset stats for normalization of states
@@ -53,6 +56,8 @@ class DecisionTransformerDataCollator:
         states = np.vstack(states)
         traj_lens = np.array(traj_lens)
         self.p_sample = traj_lens / sum(traj_lens)
+
+        self.state_mean, self.state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
 
     def _discount_cumsum(self, x, gamma):
         discount_cumsum = np.zeros_like(x)
@@ -81,6 +86,8 @@ class DecisionTransformerDataCollator:
             s.append(np.array(state_trajectory[si : si + self.max_len]).reshape(1, -1, self.state_dim))
             a.append(np.array(action_trajectory[si : si + self.max_len]).reshape(1, -1, self.act_dim))
             r.append(np.array(reward_trajectory[si : si + self.max_len]).reshape(1, -1, 1))
+
+            s[-1] = (s[-1] - self.state_mean) / self.state_std
 
             d.append(np.array(dones[si : si + self.max_len]).reshape(1, -1))
             timesteps.append(np.arange(si, si + s[-1].shape[1]).reshape(1, -1))
@@ -159,22 +166,30 @@ def train(config, start_from_scratch):
     torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
     # Define the number of examples to generate
-    num_examples = 10
-    len_examples = 5
+    num_examples = config['num_examples']
+    len_examples = config['len_examples']
 
     # Generate the challenges
-    challenges = [challenge_generator(len_examples, 'internal_repr', False)[::-1] + ["END"] for _ in range(num_examples)]
+    challenges = [challenge_generator(len_examples, config['representation'], False)[::-1] + ["END"] for _ in range(num_examples)]
 
-    states = [list(map(tokenize_state, challenge[::2])) for challenge in challenges]
+    if config['representation'] == 'color':
+        state_tokenizer = tokenize_colors
+        state_dim = 54
+    else:
+        state_tokenizer = tokenize_state
+        state_dim = 26
+
+    states = [list(map(state_tokenizer, challenge[::2])) for challenge in challenges]
     actions = [list(map(tokenize_action, challenge[1::2])) for challenge in challenges]
 
-    collator = DecisionTransformerDataCollator(states, actions)
+    collator = DecisionTransformerDataCollator(states, actions, state_dim)
 
     config = DecisionTransformerConfig(
         state_dim=collator.state_dim,
         act_dim=collator.act_dim,
-        n_head=4,
-        n_inner=4
+        n_head=config['n_heads'],
+        n_inner=config['n_inner'],
+        n_layer=config['n_layer']
     )
     model = TrainableDT(config)
 
@@ -248,6 +263,7 @@ def run_test(model, num_shuffles, device):
     scale = 1
     target_return = 10 - num_shuffles   # We get 10 reward at the end, and -1 otherwise
     episode_return, episode_length = 0, 0
+
     internal_state = challenge_generator(num_shuffles, 'internal_repr', False)[-1].strip().split(" ")
     state = np.array(tokenize_state(" ".join(internal_state)))
     target_return = torch.tensor(target_return, device=device, dtype=torch.float32).reshape(1, 1)

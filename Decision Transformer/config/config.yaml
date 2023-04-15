@@ -1,12 +1,17 @@
-seed_offset: 0  # Added for reproducibility
-representation: color
+seed_offset: 5  # Added for reproducibility
+representation: internal_repr  # color or internal_repr
 
 n_layer: 1
 n_heads: 2
 n_inner: 4
 
-num_examples: 10000
-len_examples: 5
+num_examples: 1000
+len_examples: 20
+
+num_epochs: 1
+batch_size: 64
+learning_rate: 1
+decay_rate: 0
 
 # Configurations for hydra itself
 hydra:

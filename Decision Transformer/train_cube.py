@@ -74,7 +74,7 @@ class DecisionTransformerDataCollator:
             # for feature in features:
             state_trajectory = state
             action_trajectory = action
-            si = 0
+            si = random.randint(0, len(state_trajectory) - 1)
 
             reward_trajectory = [-1 for _ in range(len(state_trajectory))]
             reward_trajectory[-1] = 10
@@ -86,8 +86,6 @@ class DecisionTransformerDataCollator:
             s.append(np.array(state_trajectory[si : si + self.max_len]).reshape(1, -1, self.state_dim))
             a.append(np.array(action_trajectory[si : si + self.max_len]).reshape(1, -1, self.act_dim))
             r.append(np.array(reward_trajectory[si : si + self.max_len]).reshape(1, -1, 1))
-
-            s[-1] = (s[-1] - self.state_mean) / self.state_std
 
             d.append(np.array(dones[si : si + self.max_len]).reshape(1, -1))
             timesteps.append(np.arange(si, si + s[-1].shape[1]).reshape(1, -1))
@@ -102,9 +100,9 @@ class DecisionTransformerDataCollator:
                 rtg[-1] = np.concatenate([rtg[-1], np.zeros((1, 1, 1))], axis=1)
 
             # padding and state + reward normalization
-            # TODO: Check if we should we add back the normalization?
             tlen = s[-1].shape[1]
             s[-1] = np.concatenate([np.zeros((1, self.max_len - tlen, self.state_dim)), s[-1]], axis=1)
+            s[-1] = (s[-1] - self.state_mean) / self.state_std
             a[-1] = np.concatenate(
                 [np.ones((1, self.max_len - tlen, self.act_dim)) * -10.0, a[-1]],
                 axis=1,
@@ -148,7 +146,9 @@ class TrainableDT(DecisionTransformerModel):
         action_targets = action_targets.reshape(-1, act_dim)[attention_mask.reshape(-1) > 0]
 
         loss = torch.nn.CrossEntropyLoss()
-        return {"loss": loss(action_preds, action_targets)}
+
+        # return {"loss": torch.linalg.vector_norm(action_preds - action_targets) ** 2}
+        return {"loss": loss(action_preds, torch.argmax(action_targets, 1))}
 
     def original_forward(self, **kwargs):
         return super().forward(**kwargs)
@@ -184,22 +184,23 @@ def train(config, start_from_scratch):
 
     collator = DecisionTransformerDataCollator(states, actions, state_dim)
 
-    config = DecisionTransformerConfig(
+    DTconfig = DecisionTransformerConfig(
         state_dim=collator.state_dim,
         act_dim=collator.act_dim,
         n_head=config['n_heads'],
         n_inner=config['n_inner'],
-        n_layer=config['n_layer']
+        n_layer=config['n_layer'],
+        action_tanh=False
     )
-    model = TrainableDT(config)
+    model = TrainableDT(DTconfig)
 
     training_args = TrainingArguments(
         output_dir="output/",
         remove_unused_columns=False,
-        num_train_epochs=50,
-        per_device_train_batch_size=64,
-        learning_rate=1e-2,
-        weight_decay=1e-8,
+        num_train_epochs=config['num_epochs'],
+        per_device_train_batch_size=config['batch_size'],
+        learning_rate=config['learning_rate'],
+        weight_decay=config['decay_rate'],
         warmup_ratio=0.1,
         optim="adamw_torch",
         max_grad_norm=0.5,
@@ -253,6 +254,8 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
         attention_mask=attention_mask,
         return_dict=False,
     )
+
+    
 
     return action_preds[0, -1]
 

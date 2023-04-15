@@ -14,6 +14,9 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from data.cube_structure.prepare import stoi, itos # Ted: Python allows importing variables from another file! This is the tokenization. 
+from data.cube_structure.prepare import encode, decode
+from cube_utilities import internal_to_color, color_to_internal 
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -54,8 +57,16 @@ class CausalSelfAttention(nn.Module):
         if not self.flash:
             print("WARNING: using slow attention. Flash Attention atm needs PyTorch nightly and dropout=0.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                        .view(1, 1, config.block_size, config.block_size))
+            #self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
+            #                            .view(1, 1, config.block_size, config.block_size))
+           
+            # Ted: Below shift masking, assuming the first 28 tokens are not to predict, but rather given as puzzle context.
+            size_puzzle_tokens = 1 + 26 + 1
+            extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
+            mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)  
+            mask = mask.view(1, 1, config.block_size, config.block_size)
+            self.register_buffer("bias", mask)
+
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
@@ -284,12 +295,21 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx, max_new_tokens=35, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
+    
+        assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input length is at least 1 + 26 + 1.
+        curr_state = idx[0].tolist()
+        curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
+        curr_state = decode(curr_state) # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
+        curr_state = internal_to_color(curr_state) # Ted: Need in color representation not internal representation, and in string format!
+
+
+
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
@@ -305,7 +325,18 @@ class GPT(nn.Module):
             probs = F.softmax(logits, dim=-1)
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)
-            # append sampled index to the running sequence and continue
-            idx = torch.cat((idx, idx_next), dim=1) # Ted: TODO: Found it! Autoregressive with transition function here!
 
+            # append sampled index to the running sequence and continue
+            #idx = torch.cat((idx, idx_next), dim=1) # Ted: TODO: Found it! Autoregressive with transition function here!
+            move = idx_next  
+            if (idx_next not in action_space): # TODO: Define action space.
+                # TODO: Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry. 
+            else: # Valid action.
+                if (idx_next == 'DONE'):
+                    # TODO: Just return. 
+                else:
+                    # TODO: Concatenate.
+                    curr_state = cube_permute(curr_state, move) # Note <cube_permute> takes in color representation, not internal representation.
+                    idx = torch.cat()
+            
         return idx

@@ -22,6 +22,8 @@ def tokenize_action(action):
     action_vector[actions.index(action.strip())] = 1
     return action_vector
 
+def tokenize_colors(state):
+    return list(map(lambda n: colors.index(n), list(state)))
 
 def tokenize_state(state):
     """
@@ -74,7 +76,7 @@ def color_to_internal(color_repr: str):
     return internal_repr
 
 
-def internal_to_color(internal_repr: list[str]):
+def internal_to_color(internal_repr: list):
     """
     - Input: (list) A internal representation of 3x3 Rubik's cube.
     - Output: (str) Conversion to color representation of the cube. 
@@ -196,178 +198,177 @@ def cube_permute(starting_state: str, moves: str):
 
 
         state_transformed = list(state)
-        match move: 
-            case "U-": 
-                # Convert to color repr then perform operation then convert back to internal repr. 
-                # Stribe change:
-                state_transformed[20] = state[47]
-                state_transformed[19] = state[46]
-                state_transformed[18] = state[45]
-    
-                state_transformed[38] = state[20]
-                state_transformed[37] = state[19]
-                state_transformed[36] = state[18]
-    
-                state_transformed[29] = state[38]
-                state_transformed[28] = state[37]
-                state_transformed[27] = state[36]
-    
-    
-                state_transformed[47] = state[29]
-                state_transformed[46] = state[28]
-                state_transformed[45] = state[27]
+        if move == "U-": 
+            # Convert to color repr then perform operation then convert back to internal repr. 
+            # Stribe change:
+            state_transformed[20] = state[47]
+            state_transformed[19] = state[46]
+            state_transformed[18] = state[45]
 
-                # Face rotation:
-                rotate_face_clockwise(0)
+            state_transformed[38] = state[20]
+            state_transformed[37] = state[19]
+            state_transformed[36] = state[18]
 
-            case "D-": 
-                state_transformed[24] = state[42]
-                state_transformed[25] = state[43]
-                state_transformed[26] = state[44]
-    
-                state_transformed[51] = state[24]
-                state_transformed[52] = state[25]
-                state_transformed[53] = state[26]
-    
-                state_transformed[33] = state[51]
-                state_transformed[34] = state[52]
-                state_transformed[35] = state[53]
-    
-                state_transformed[42] = state[33]
-                state_transformed[43] = state[34]
-                state_transformed[44] = state[35]
+            state_transformed[29] = state[38]
+            state_transformed[28] = state[37]
+            state_transformed[27] = state[36]
 
-                # Face rotation:
-                rotate_face_clockwise(9)
 
-            case "F-": 
-                state_transformed[6] = state[44]
-                state_transformed[7] = state[41]
-                state_transformed[8] = state[38]
-    
-                state_transformed[45] = state[6]
-                state_transformed[48] = state[7]
-                state_transformed[51] = state[8]
-    
-                state_transformed[11] = state[45]
-                state_transformed[10] = state[48]
-                state_transformed[9] = state[51]
-    
-                state_transformed[44] = state[11]
-                state_transformed[41] = state[10]
-                state_transformed[38] = state[9]
-                
-                # Face rotation:
-                rotate_face_clockwise(18)
+            state_transformed[47] = state[29]
+            state_transformed[46] = state[28]
+            state_transformed[45] = state[27]
 
-            case "B-":
-                state_transformed[2] = state[53]
-                state_transformed[1] = state[50]
-                state_transformed[0] = state[47]
-    
-                state_transformed[36] = state[2]
-                state_transformed[39] = state[1]
-                state_transformed[42] = state[0]
-    
-                state_transformed[15] = state[36]
-                state_transformed[16] = state[39]
-                state_transformed[17] = state[42]
-    
-                state_transformed[53] = state[15]
-                state_transformed[50] = state[16]
-                state_transformed[47] = state[17]
+            # Face rotation:
+            rotate_face_clockwise(0)
 
-                # Face rotation:
-                rotate_face_clockwise(27)
+        if move == "D-":
+            state_transformed[24] = state[42]
+            state_transformed[25] = state[43]
+            state_transformed[26] = state[44]
 
-            case "L-":
-                state_transformed[0] = state[35]
-                state_transformed[3] = state[32]
-                state_transformed[6] = state[29]
-    
-                state_transformed[18] = state[0]
-                state_transformed[21] = state[3]
-                state_transformed[24] = state[6]
-    
-                state_transformed[9] = state[18]
-                state_transformed[12] = state[21]
-                state_transformed[15] = state[24]
-    
-                state_transformed[35] = state[9]
-                state_transformed[32] = state[12]
-                state_transformed[29] = state[15]
+            state_transformed[51] = state[24]
+            state_transformed[52] = state[25]
+            state_transformed[53] = state[26]
 
-                # Face rotation:
-                rotate_face_clockwise(36)
+            state_transformed[33] = state[51]
+            state_transformed[34] = state[52]
+            state_transformed[35] = state[53]
 
-            case "R-":
-                state_transformed[8] = state[26]
-                state_transformed[5] = state[23]
-                state_transformed[2] = state[20]
-    
-                state_transformed[27] = state[8]
-                state_transformed[30] = state[5]
-                state_transformed[33] = state[2]
-    
-                state_transformed[17] = state[27]
-                state_transformed[14] = state[30]
-                state_transformed[11] = state[33]
-    
-                state_transformed[26] = state[17]
-                state_transformed[23] = state[14]
-                state_transformed[20] = state[11]
+            state_transformed[42] = state[33]
+            state_transformed[43] = state[34]
+            state_transformed[44] = state[35]
 
-                # Face rotation:
-                rotate_face_clockwise(45)
+            # Face rotation:
+            rotate_face_clockwise(9)
 
-            case "V-":
-                state_transformed[1] = state[34]
-                state_transformed[4] = state[31]
-                state_transformed[7] = state[28]
-    
-                state_transformed[19] = state[1]
-                state_transformed[22] = state[4]
-                state_transformed[25] = state[7]
-    
-                state_transformed[10] = state[19]
-                state_transformed[13] = state[22]
-                state_transformed[16] = state[25]
-    
-                state_transformed[34] = state[10]
-                state_transformed[31] = state[13]
-                state_transformed[28] = state[16]  
-            case "H-":
-                state_transformed[23] = state[50]
-                state_transformed[22] = state[49]
-                state_transformed[21] = state[48]
-    
-                state_transformed[41] = state[23]
-                state_transformed[40] = state[22]
-                state_transformed[39] = state[21]
-    
-                state_transformed[32] = state[41]
-                state_transformed[31] = state[40]
-                state_transformed[30] = state[39]
-    
-                state_transformed[50] = state[32]
-                state_transformed[49] = state[31]
-                state_transformed[48] = state[30]
-            case "S-":
-                state_transformed[3] = state[43]
-                state_transformed[4] = state[40]
-                state_transformed[5] = state[37]
-    
-                state_transformed[46] = state[3]
-                state_transformed[49] = state[4]
-                state_transformed[52] = state[5]
-    
-                state_transformed[14] = state[46]
-                state_transformed[13] = state[49]
-                state_transformed[12] = state[52]
-    
-                state_transformed[43] = state[14]
-                state_transformed[40] = state[13]
-                state_transformed[37] = state[12]
+        if move == "F-": 
+            state_transformed[6] = state[44]
+            state_transformed[7] = state[41]
+            state_transformed[8] = state[38]
+
+            state_transformed[45] = state[6]
+            state_transformed[48] = state[7]
+            state_transformed[51] = state[8]
+
+            state_transformed[11] = state[45]
+            state_transformed[10] = state[48]
+            state_transformed[9] = state[51]
+
+            state_transformed[44] = state[11]
+            state_transformed[41] = state[10]
+            state_transformed[38] = state[9]
+            
+            # Face rotation:
+            rotate_face_clockwise(18)
+
+        if move == "B-":
+            state_transformed[2] = state[53]
+            state_transformed[1] = state[50]
+            state_transformed[0] = state[47]
+
+            state_transformed[36] = state[2]
+            state_transformed[39] = state[1]
+            state_transformed[42] = state[0]
+
+            state_transformed[15] = state[36]
+            state_transformed[16] = state[39]
+            state_transformed[17] = state[42]
+
+            state_transformed[53] = state[15]
+            state_transformed[50] = state[16]
+            state_transformed[47] = state[17]
+
+            # Face rotation:
+            rotate_face_clockwise(27)
+
+        if move == "L-":
+            state_transformed[0] = state[35]
+            state_transformed[3] = state[32]
+            state_transformed[6] = state[29]
+
+            state_transformed[18] = state[0]
+            state_transformed[21] = state[3]
+            state_transformed[24] = state[6]
+
+            state_transformed[9] = state[18]
+            state_transformed[12] = state[21]
+            state_transformed[15] = state[24]
+
+            state_transformed[35] = state[9]
+            state_transformed[32] = state[12]
+            state_transformed[29] = state[15]
+
+            # Face rotation:
+            rotate_face_clockwise(36)
+
+        if move == "R-":
+            state_transformed[8] = state[26]
+            state_transformed[5] = state[23]
+            state_transformed[2] = state[20]
+
+            state_transformed[27] = state[8]
+            state_transformed[30] = state[5]
+            state_transformed[33] = state[2]
+
+            state_transformed[17] = state[27]
+            state_transformed[14] = state[30]
+            state_transformed[11] = state[33]
+
+            state_transformed[26] = state[17]
+            state_transformed[23] = state[14]
+            state_transformed[20] = state[11]
+
+            # Face rotation:
+            rotate_face_clockwise(45)
+
+        if move == "V-":
+            state_transformed[1] = state[34]
+            state_transformed[4] = state[31]
+            state_transformed[7] = state[28]
+
+            state_transformed[19] = state[1]
+            state_transformed[22] = state[4]
+            state_transformed[25] = state[7]
+
+            state_transformed[10] = state[19]
+            state_transformed[13] = state[22]
+            state_transformed[16] = state[25]
+
+            state_transformed[34] = state[10]
+            state_transformed[31] = state[13]
+            state_transformed[28] = state[16]  
+        if move == "H-":
+            state_transformed[23] = state[50]
+            state_transformed[22] = state[49]
+            state_transformed[21] = state[48]
+
+            state_transformed[41] = state[23]
+            state_transformed[40] = state[22]
+            state_transformed[39] = state[21]
+
+            state_transformed[32] = state[41]
+            state_transformed[31] = state[40]
+            state_transformed[30] = state[39]
+
+            state_transformed[50] = state[32]
+            state_transformed[49] = state[31]
+            state_transformed[48] = state[30]
+        if move == "S-":
+            state_transformed[3] = state[43]
+            state_transformed[4] = state[40]
+            state_transformed[5] = state[37]
+
+            state_transformed[46] = state[3]
+            state_transformed[49] = state[4]
+            state_transformed[52] = state[5]
+
+            state_transformed[14] = state[46]
+            state_transformed[13] = state[49]
+            state_transformed[12] = state[52]
+
+            state_transformed[43] = state[14]
+            state_transformed[40] = state[13]
+            state_transformed[37] = state[12]
             
         return "".join(state_transformed)
 

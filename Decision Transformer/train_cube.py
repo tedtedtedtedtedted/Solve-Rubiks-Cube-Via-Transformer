@@ -109,7 +109,7 @@ class DecisionTransformerDataCollator:
             # padding and state + reward normalization
             tlen = s[-1].shape[1]
             s[-1] = np.concatenate([np.zeros((1, self.max_len - tlen, self.state_dim)), s[-1]], axis=1)
-            # s[-1] = (s[-1] - self.state_mean) / self.state_std
+            s[-1] = (s[-1] - self.state_mean) / self.state_std
             a[-1] = np.concatenate(
                 [np.ones((1, self.max_len - tlen, self.act_dim)) * -10.0, a[-1]],
                 axis=1,
@@ -234,6 +234,8 @@ def train(config, start_from_scratch):
     logSave.write(str(trainer.state.log_history) + '\n')
     logSave.close()
 
+    logging.info(f"mean: {mean}, std: {std}")
+
     return model
 
 def get_action(model, states, actions, rewards, returns_to_go, timesteps):
@@ -270,8 +272,6 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
     action_preds = torch.softmax(action_preds, 1)
 
     return action_preds[0, -1]
-
-# Its learning the previous move, not the next move
 
 def run_tests(model, device):
     """Must have the global variables mean and std set properly"""
@@ -317,8 +317,8 @@ def run_test(model, num_shuffles, device):
 
         action = get_action(
             model,
-            # (states - mean) / std,
-            states,
+            (states - mean) / std,
+            # states,
             actions,
             rewards,
             target_return,

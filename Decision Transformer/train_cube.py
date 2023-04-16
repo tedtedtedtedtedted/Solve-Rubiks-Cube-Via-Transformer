@@ -17,6 +17,9 @@ from cube_utilities import *
 
 import hydra
 
+mean = 0
+std = 1
+
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def train_from_scratch(config):
     """hydra decorated functions can only take in one parameter.
@@ -58,6 +61,10 @@ class DecisionTransformerDataCollator:
         self.p_sample = traj_lens / sum(traj_lens)
 
         self.state_mean, self.state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
+
+        global mean, std
+        mean = self.state_mean
+        std = self.state_std
 
     def _discount_cumsum(self, x, gamma):
         discount_cumsum = np.zeros_like(x)
@@ -190,7 +197,7 @@ def train(config, start_from_scratch):
         n_head=config['n_heads'],
         n_inner=config['n_inner'],
         n_layer=config['n_layer'],
-        action_tanh=False
+        action_tanh=True
     )
     model = TrainableDT(DTconfig)
 
@@ -258,6 +265,7 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
     return action_preds[0, -1]
 
 def run_tests(model, device):
+    """Must have the global variables mean and std set properly"""
     num_per_shuffle = 10
     logging.info(f"Running {num_per_shuffle} tests per shuffle.")
     for num_shuffle in {1, 2, 3, 5, 10, 20}:
@@ -273,6 +281,9 @@ def run_tests(model, device):
 
 
 def run_test(model, num_shuffles, device):
+    """Must have the global variables mean and std set"""
+    global mean, std
+
     state_dim = model.config.state_dim  # Number of tokens in every state
     act_dim = model.config.act_dim # Number of tokens in every action
     max_ep_len = 30
@@ -295,7 +306,7 @@ def run_test(model, num_shuffles, device):
 
         action = get_action(
             model,
-            states,
+            (states - mean) / std,
             actions,
             rewards,
             target_return,

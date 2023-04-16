@@ -8,6 +8,7 @@ https://github.com/huggingface/transformers/blob/main/src/transformers/models/gp
 """
 
 import math
+import random
 import inspect
 from dataclasses import dataclass
 
@@ -15,8 +16,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from data.cube_structure.prepare import stoi, itos # Ted: Python allows importing variables from another file! This is the tokenization. 
-from data.cube_structure.prepare import encode, decode
-from cube_utilities import internal_to_color, color_to_internal 
+from cube_utilities import internal_to_color, color_to_internal, cube_permute, action_space, action_space_strict
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -302,10 +302,10 @@ class GPT(nn.Module):
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
     
-        assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input length is at least 1 + 26 + 1.
+        assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input (token) length is at least 1 + 26 + 1.
         curr_state = idx[0].tolist()
         curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
-        curr_state = decode(curr_state) # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
+        curr_state = [itos[i] for i in curr_state] # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
         curr_state = internal_to_color(curr_state) # Ted: Need in color representation not internal representation, and in string format!
 
 
@@ -324,19 +324,29 @@ class GPT(nn.Module):
             # apply softmax to convert logits to (normalized) probabilities
             probs = F.softmax(logits, dim=-1)
             # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1)
+            idx_next = torch.multinomial(probs, num_samples=1) # Ted: Return a tensor of one number which is the position index <i> and occur with probability <probs[i]>.
 
             # append sampled index to the running sequence and continue
-            #idx = torch.cat((idx, idx_next), dim=1) # Ted: TODO: Found it! Autoregressive with transition function here!
-            move = idx_next  
-            if (idx_next not in action_space): # TODO: Define action space.
-                # TODO: Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry. 
-            else: # Valid action.
-                if (idx_next == 'DONE'):
-                    # TODO: Just return. 
-                else:
-                    # TODO: Concatenate.
-                    curr_state = cube_permute(curr_state, move) # Note <cube_permute> takes in color representation, not internal representation.
-                    idx = torch.cat()
+            #idx = torch.cat((idx, idx_next), dim=1) # Ted: Found it! Autoregressive with transition function here!
+            move = itos[int(idx_next.item())] # Ted: <int()> cast is unnecessary but avoid complaining.
+            if (move not in action_space):
+                # Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry. 
+                move = random.choice(action_space_strict) # replace with random move.
+            # Concatenate action.
+            idx_next = torch.tensor([[stoi[move]]]) # Update <idx_next> (i.e. move).
+            idx = torch.cat((idx, idx_next), dim=1) # Concatenate new action.
+            if (move == 'DONE'): # Just return and be done.
+                return idx 
+            # Concatenate next state and separators.
+            separator_state_begin = "I_SB"
+            separator_state_end = "I_SE"
+            separator_state_begin = torch.tensor([[stoi[separator_state_begin]]])
+            separator_state_end = torch.tensor([[stoi[separator_state_end]]])
+            idx = torch.cat((idx, separator_state_begin), dim=1) # Concatenate new state-begin separator.
+            curr_state = cube_permute(curr_state, move) # Ted: Note <cube_permute> takes in color representation, not internal representation.
+            state_tensor = color_to_internal(curr_state)
+            state_tensor = torch.tensor([[stoi[c] for c in state_tensor]]) # Ted: Encode.
+            idx = torch.cat((idx, state_tensor), dim=1)
+            idx = torch.cat((idx, separator_state_end), dim=1) # Concatenate new state-end separator.
             
         return idx

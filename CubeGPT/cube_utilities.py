@@ -5,6 +5,15 @@
 import random
 
 
+
+
+
+# Used in "model.py".
+action_space = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-", "DONE"]
+action_space_strict = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
+
+
+
 def color_to_internal(color_repr: str):
     """
     - Input: (str) A color representation of 3x3 Rubik's cube.
@@ -150,7 +159,6 @@ def cube_permute(starting_state: str, moves: str):
         - Note: Don't care about fast performance. Thus will lessen the code to prioritize readability and correctness over speed performance.
         """
     
-
         def rotate_face_clockwise(starting_index: int):
             """
             - Rotate a face.
@@ -169,8 +177,7 @@ def cube_permute(starting_state: str, moves: str):
 
 
         state_transformed = list(state)
-    
-        match move: 
+        match move:
             case "U-": 
                 # Convert to color repr then perform operation then convert back to internal repr. 
                 # Stribe change:
@@ -346,24 +353,25 @@ def cube_permute(starting_state: str, moves: str):
         return "".join(state_transformed)
 
 
-    for move in stupid_moves:
+    for i in range(0, len(stupid_moves), 2):
+        move = stupid_moves[i:i+2]
         curr_state = cube_permute_single(curr_state, move)
     return curr_state
 
 
 
-def internal_cube_permute(starting_state: str, moves: str):
-    """
-    - Assuming internal representation of cube state (added for convenience)
-    - Input:
-        - An starting state to start from.
-        - A sequence of permutations.
-    - Output:
-        - An arrived final state.
-    """
-    internal_state = internal_to_color(starting_state)
-    permuted_cube = cube_permute(internal_state, moves)
-    return color_to_internal(permuted_cube)
+# def internal_cube_permute(starting_state: str, moves: str):
+#     """
+#     - Assuming internal representation of cube state (added for convenience)
+#     - Input:
+#         - An starting state to start from.
+#         - A sequence of permutations.
+#     - Output:
+#         - An arrived final state.
+#     """
+#     internal_state = internal_to_color(starting_state)
+#     permuted_cube = cube_permute(internal_state, moves)
+#     return color_to_internal(permuted_cube)
 
 
 
@@ -377,13 +385,18 @@ def stupidize_permutations(moves: str):
         - A stupid sequence (list) moves with inverse being replaced by 3 times non-inverse moves, and also for sandwiched moves.
     """
     stupid_moves = []
-    for i in range(len(moves)):
-        if moves[i].islower():
-            stupid_moves.append(moves[i].upper())
-            stupid_moves.append(moves[i].upper())
-            stupid_moves.append(moves[i].upper())
+    num_moves = int(len(moves) / 2)
+    for i in range(num_moves):
+        if moves[2 * i].islower():
+            stupid_moves.append(moves[2 * i].upper())
+            stupid_moves.append('-')
+            stupid_moves.append(moves[2 * i].upper())
+            stupid_moves.append('-')
+            stupid_moves.append(moves[2 * i].upper())
+            stupid_moves.append('-')
         else:
-             stupid_moves.append(moves[i])
+            stupid_moves.append(moves[2 * i])
+            stupid_moves.append('-')
     return "".join(stupid_moves)
 
 
@@ -409,7 +422,8 @@ def init_state(repr_mode: str):
     return "".join(state)
 
 
-def challenge_generator(n: int, repr_mode: str, random_start: bool):
+#def challenge_generator(n: int, repr_mode: str, random_start: bool):
+def challenge_generator(num_permute: int, repr_mode: str):
     """
     - Input:
         - Number of moves to permute.
@@ -419,32 +433,88 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
         - A (internal or color representation) sequence of states and actions, where randomness from actions.
     """
     
-    curr_state = init_state(repr_mode) # For now assumed color repr. // TODO: Later need internal repr.
-    actions = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
-    if random_start:
-        actions_permute_init_state = random.choices(actions, k=100)
-        for i in range(100): # Ensure a very random starting state.
-            curr_state = cube_permute(curr_state, actions_permute_init_state[i]) 
+#    curr_state = init_state(repr_mode) # For now assumed color repr. // TODO: Later need internal repr.
+#    actions = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
+#    if random_start:
+#        actions_permute_init_state = random.choices(actions, k=100)
+#        for i in range(100): # Ensure a very random starting state.
+#            curr_state = cube_permute(curr_state, actions_permute_init_state[i]) 
+#
+#    actions_for_record = random.choices(actions, k=n)
+#    record = [""] * (2 * n + 1)
+#    record[0] = curr_state
+#    for i in range(n):
+#        record[2 * i + 1] = actions_for_record[i]
+#        record[2 * i + 2] = cube_permute(record[2 * i], actions_for_record[i]) # Don't directly use <cube_permute_single>!
+#
+#
+#    # Convert <record> to internal representation:
+#    if repr_mode == "internal_repr":
+#        record[0] = " " + " ".join(color_to_internal(record[0])) + " "
+#        for i in range(n):
+#            record[2 * i + 1] = " " + record[2 * i + 1] + " "
+#            record[2 * i + 2] = " " + " ".join(color_to_internal(record[2 * i + 2])) + " "
+#    
+#        
+#
+#    # Return type: List of states (color repr so str) and actions (str).
+#    return record 
 
-    actions_for_record = random.choices(actions, k=n)
-    record = [""] * (2 * n + 1)
+
+    ############ Above legacy #############
+
+
+    # Generate <seq_len> random actions.
+    actions = ["U-", "u-", "D-", "d-", "F-", "f-", "B-", "b-", "L-", "l-", "R-", "r-", "V-", "v-", "H-", "h-", "S-", "s-"]
+    actions_for_record = random.choices(actions, k=num_permute)
+    # Produce list of states and actions.
+    curr_state = init_state(repr_mode) # For now assumed color repr.
+    record = [""] * (2 * num_permute + 1)
     record[0] = curr_state
-    for i in range(n):
+    for i in range(num_permute):
         record[2 * i + 1] = actions_for_record[i]
         record[2 * i + 2] = cube_permute(record[2 * i], actions_for_record[i]) # Don't directly use <cube_permute_single>!
 
+    # Revert above list.
+    record.reverse()
+
+    # Invert actions in list.
+    #def invert_actions_in_record(seq): # Modify <seq> in place.
+    inverse_actions = { "U-": "u-", 
+                    "u-": "U-",
+                "D-": "d-", 
+            "d-": "D-",
+                "F-": "f-", 
+                    "f-": "F-",
+                        "B-": "b-", 
+                    "b-": "B-",
+                "L-": "l-", 
+                    "l-": "L-",
+                       "R-": "r-", 
+                    "r-": "R-",
+                "V-": "v-", 
+                    "v-": "V-",
+                        "H-": "h-", 
+                    "h-": "H-",
+                "S-": "s-", 
+                    "s-": "S-"
+                           }
+
+    for i in range(num_permute):
+        record[2 * i + 1] = inverse_actions[record[2 * i + 1]]
+
+    #invert_actions_in_record(record)
 
     # Convert <record> to internal representation:
     if repr_mode == "internal_repr":
-        record[0] = " " + " ".join(color_to_internal(record[0])) + " "
-        for i in range(n):
+        record[0] = "I_SB" + " " + " ".join(color_to_internal(record[0])) + " " + "I_SE"
+        for i in range(num_permute):
             record[2 * i + 1] = " " + record[2 * i + 1] + " "
-            record[2 * i + 2] = " " + " ".join(color_to_internal(record[2 * i + 2])) + " "
-    
-        
-
-    # Return type: List of states (color repr so str) and actions (str).
+            record[2 * i + 2] = "I_SB" + " " + " ".join(color_to_internal(record[2 * i + 2])) + " " + "I_SE" # TODO: Determine if the begin and end space is necessary.
+            
     return record 
+
+
 
 
 
@@ -484,15 +554,43 @@ def cube_visualize(state: str):
 
 
 
-def write_cube_structure_data_to_file(n: int):
-    data = challenge_generator(n, "internal_repr", False)
+#def write_cube_structure_data_to_file(n: int):
+#    data = challenge_generator(n, "internal_repr", False)
+#    with open("./data/cube_structure/input.txt", "a") as file:
+#        file.truncate(0)
+#        file.write(data[0] + "\n") 
+#        for i in range(n):
+#            file.write(data[2 * i + 1] + "\n")
+#            file.write(data[2 * i + 2] + "\n")
+    
+
+
+
+
+def challenge_format(challenge: list[str]):
+    """
+    To put a challenge into the format for writing to training file.
+    """
+    return " " + "".join(challenge) + " " + "DONE" + " " + "\n"
+    
+
+
+
+
+
+
+def cube_generate_training_file(num_examples: int, num_permute: int):
+    """
+    - num_examples: How many problem-solutions to generate.
+    - seq_len: One file contains same action length solution.
+    """
     with open("./data/cube_structure/input.txt", "a") as file:
         file.truncate(0)
-        file.write(data[0] + "\n") 
-        for i in range(n):
-            file.write(data[2 * i + 1] + "\n")
-            file.write(data[2 * i + 2] + "\n")
-
+        for _ in range(num_examples):
+            challenge = challenge_generator(num_permute, "internal_repr") # Insert strings backwards so to not mess up with indexing.
+            formatted_challenge = challenge_format(challenge)
+            file.write(formatted_challenge)
+         
 
 
 
@@ -500,10 +598,11 @@ def write_cube_structure_data_to_file(n: int):
 if __name__ == "__main__":
 
     #print(challenge_generator(5, "internal_repr", False))
-    write_cube_structure_data_to_file(10000) # TODO: Future pass file path.
-
-
-
+    #write_cube_structure_data_to_file(10000) # TODO: Future pass file path.
+    cube_generate_training_file(10000, 5)
+    #print(challenge_generator(10, "internal_repr"))
+    #print(init_state("haha"))
+    #print(color_to_internal(init_state("haha")))
 
 
 

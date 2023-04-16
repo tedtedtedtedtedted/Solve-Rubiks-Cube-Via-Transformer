@@ -368,7 +368,7 @@ class GPT(nn.Module):
             probs = F.softmax(logits, dim=-1)
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)
-            print(type(idx_next.item())) # Ted: DEBUG.
+            #print(type(idx_next.item())) # Ted: DEBUG.
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 

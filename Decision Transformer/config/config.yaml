@@ -1,0 +1,21 @@
+seed_offset: 1337  # Added for reproducibility
+representation: internal_repr  # color or internal_repr
+
+n_layer: 1
+n_heads: 1
+n_inner: 1
+
+num_examples: 100
+len_examples: 1
+
+num_epochs: 5
+batch_size: 64
+learning_rate: 0.005
+decay_rate: 0
+
+# Configurations for hydra itself
+hydra:
+  run:
+    dir: ${oc.env:OUTPUT_DIR,./outputs}/${hydra.job.config_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: False

@@ -109,7 +109,7 @@ class DecisionTransformerDataCollator:
             # padding and state + reward normalization
             tlen = s[-1].shape[1]
             s[-1] = np.concatenate([np.zeros((1, self.max_len - tlen, self.state_dim)), s[-1]], axis=1)
-            s[-1] = (s[-1] - self.state_mean) / self.state_std
+            # s[-1] = (s[-1] - self.state_mean) / self.state_std
             a[-1] = np.concatenate(
                 [np.ones((1, self.max_len - tlen, self.act_dim)) * -10.0, a[-1]],
                 axis=1,
@@ -177,7 +177,10 @@ def train(config, start_from_scratch):
     len_examples = config['len_examples']
 
     # Generate the challenges
-    challenges = [challenge_generator(len_examples, config['representation'], False)[::-1] + ["END"] for _ in range(num_examples)]
+    challenges = [reverse_record(challenge_generator(len_examples, config['representation'], False)) for _ in range(num_examples)]
+
+    # Bad Examples
+    challenges += [reverse_record(challenge_generator(len_examples, config['representation'], True)) for _ in range(num_examples)]
 
     if config['representation'] == 'color':
         state_tokenizer = tokenize_colors
@@ -188,6 +191,8 @@ def train(config, start_from_scratch):
 
     states = [list(map(state_tokenizer, challenge[::2])) for challenge in challenges]
     actions = [list(map(tokenize_action, challenge[1::2])) for challenge in challenges]
+    #rewards = [[-1] * (len_examples - 1) + [10] for _ in range(num_examples)] \
+    #            + [[-1] * len_examples for _ in range(num_examples)]
 
     collator = DecisionTransformerDataCollator(states, actions, state_dim)
 
@@ -197,7 +202,7 @@ def train(config, start_from_scratch):
         n_head=config['n_heads'],
         n_inner=config['n_inner'],
         n_layer=config['n_layer'],
-        action_tanh=True
+        action_tanh=False
     )
     model = TrainableDT(DTconfig)
 
@@ -219,7 +224,7 @@ def train(config, start_from_scratch):
         model=model,
         args=training_args,
         data_collator=collator,
-        train_dataset=[(s, a) for s in states for a in actions]
+        train_dataset=list(zip(states, actions))
     )
 
     result = trainer.train()
@@ -262,7 +267,11 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
         return_dict=False,
     )
 
+    action_preds = torch.softmax(action_preds, 1)
+
     return action_preds[0, -1]
+
+# Its learning the previous move, not the next move
 
 def run_tests(model, device):
     """Must have the global variables mean and std set properly"""
@@ -300,13 +309,16 @@ def run_test(model, num_shuffles, device):
     rewards = torch.zeros(0, device=device, dtype=torch.float32)
 
     timesteps = torch.tensor(0, device=device, dtype=torch.long).reshape(1, 1)
+    #print("new start:")
+    #cube_visualize(internal_to_color(internal_state))
     for t in range(max_ep_len):
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
         rewards = torch.cat([rewards, torch.zeros(1, device=device)])
 
         action = get_action(
             model,
-            (states - mean) / std,
+            # (states - mean) / std,
+            states,
             actions,
             rewards,
             target_return,
@@ -315,7 +327,10 @@ def run_test(model, num_shuffles, device):
         actions[-1] = action
         action = action.detach().cpu().numpy()
 
-        internal_state = internal_cube_permute(internal_state, get_action_list()[np.argmax(action)])
+        old = internal_state
+        internal_state = internal_cube_permute(internal_state, [get_action_list()[np.argmax(action)]])
+        #cube_visualize(internal_to_color(internal_state))
+        #print(get_action_list()[np.argmax(action)])
         state = np.array(tokenize_state(" ".join(internal_state)))
         done = is_done(internal_state)
         if done:
@@ -341,7 +356,7 @@ def run_test(model, num_shuffles, device):
     logging.debug(actions)
     logging.debug(rewards)
 
-    return rewards[-1] == 10, sum(rewards)
+    return done, sum(rewards)
 
 
 if __name__ == '__main__':

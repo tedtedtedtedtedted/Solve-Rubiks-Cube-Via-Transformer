@@ -404,13 +404,13 @@ def stupidize_permutations(moves: str):
         - A stupid sequence (list) moves with inverse being replaced by 3 times non-inverse moves, and also for sandwiched moves.
     """
     stupid_moves = []
-    for i in range(len(moves)):
-        if moves[i].islower():
-            stupid_moves.append(moves[i].upper())
-            stupid_moves.append(moves[i].upper())
-            stupid_moves.append(moves[i].upper())
+    for move in moves:
+        if move.islower():
+            stupid_moves.append(move.upper())
+            stupid_moves.append(move.upper())
+            stupid_moves.append(move.upper())
         else:
-             stupid_moves.append(moves[i])
+            stupid_moves.append(move)
     return stupid_moves
 
 
@@ -461,7 +461,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
     if random_start:
         actions_permute_init_state = random.choices(actions, k=100)
         for i in range(100): # Ensure a very random starting state.
-            curr_state = cube_permute(curr_state, actions_permute_init_state[i]) 
+            curr_state = cube_permute(curr_state, [actions_permute_init_state[i]])
 
     actions_for_record = random.choices(actions, k=n)
     record = [""] * (2 * n + 1)
@@ -472,15 +472,44 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
 
     # Convert <record> to internal representation:
     if repr_mode == "internal_repr":
-        record[0] = " " + " ".join(color_to_internal(record[0])) + " "
+        record[0] = " ".join(color_to_internal(record[0]))
         for i in range(n):
-            record[2 * i + 1] = " " + record[2 * i + 1] + " "
-            record[2 * i + 2] = " " + " ".join(color_to_internal(record[2 * i + 2])) + " "
+            record[2 * i + 1] = record[2 * i + 1]
+            record[2 * i + 2] = " ".join(color_to_internal(record[2 * i + 2]))
     
     # Return type: List of states (color repr so str) and actions (str).
     return record 
 
 
+def reverse_record(record):
+    # Revert above list.
+    record.reverse()
+
+    # Invert actions in list.
+    #def invert_actions_in_record(seq): # Modify <seq> in place.
+    inverse_actions = { "U-": "u-", 
+                    "u-": "U-",
+                "D-": "d-", 
+            "d-": "D-",
+                "F-": "f-", 
+                    "f-": "F-",
+                        "B-": "b-", 
+                    "b-": "B-",
+                "L-": "l-", 
+                    "l-": "L-",
+                       "R-": "r-", 
+                    "r-": "R-",
+                "V-": "v-", 
+                    "v-": "V-",
+                        "H-": "h-", 
+                    "h-": "H-",
+                "S-": "s-", 
+                    "s-": "S-"
+                           }
+
+    for i in range(len(record) // 2):
+        record[2 * i + 1] = inverse_actions[record[2 * i + 1]]
+    return record + ["END"]
 
 
 def cube_visualize(state: str):

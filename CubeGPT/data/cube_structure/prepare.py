@@ -1,8 +1,4 @@
 # TODO: Modify to use input cube structure randomly generated.
-# TODO: Here the code uses char level, but we want our own tokenization!
-
-
-
 
 
 """
@@ -20,7 +16,11 @@ import numpy as np
 input_file_path = os.path.join(os.path.dirname(__file__), 'input.txt')
 
 with open(input_file_path, 'r') as f:
-    data = f.read()
+    #data = f.read() # Ted: Removed.
+    # Ted: Below added for train & validation sets.
+    lines = f.readlines()
+    num_lines = len(lines)
+    print("num_lines: " + str(num_lines)) # Ted: DEBUG.
 # print(f"length of dataset in characters: {len(data):,}")
 
 # get all the unique characters that occur in this text
@@ -35,8 +35,8 @@ tokens_cube = ["YOG", "YO", "YOB", "YG", "Y", "YB", "YRG", "YR", "YRB", "OG", "O
                "U-", "D-", "F-", "B-", "L-", "R-", "V-", "H-", "S-", # Actions.
                "u-", "d-", "f-", "b-", "l-", "r-", "v-", "h-", "s-",
                "DONE", # Also an action specifying done.
-               "I_SE", "I_SB" # Separators for state.
-               #"\n" # End of token. # TODO: Likely not necessary and be removed.
+               "I_SE", "I_SB", # Separators for state.
+               "\n" # End of token. # Although this will never be in action space of transformer, for simplicity we comprimise, since we need to encode training file into ".bin" file.
                ] # Cube-color tokens. 
 
 
@@ -62,12 +62,22 @@ def encode(s):
     return [stoi[c] for c in s_list] # encoder: take a string, output a list of integers # TODO: WB end-of-line character?
 def decode(l):
     #''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
-    return ' '.join([itos[i] for i in l]) # Ted: Modified.
+    #return ' '.join([itos[i] for i in l]) # Ted: Modified.
+    return [itos[i] for i in l] # Ted: Modified.
 
 # create the train and test splits
-n = len(data)
-train_data = data[:int(n*0.9)]
-val_data = data[int(n*0.9):]
+#n = len(data)
+#train_data = data[:int(n*0.9)]
+#val_data = data[int(n*0.9):]
+# Ted: Cannot naively treat file as one big string in our setting:
+train_data = lines[:round(num_lines * 0.9)]
+val_data = lines[round(num_lines * 0.9):]
+# Ted: Convert above data back to string.
+train_data = ''.join(train_data)
+val_data = ''.join(val_data)
+
+
+
 
 # encode both to integers
 train_ids = encode(train_data)

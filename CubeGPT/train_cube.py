@@ -53,18 +53,58 @@ def load_model(model_args, config):
 
     return model, checkpoint, iter_num, best_val_loss
 
+
+
+
+def get_batch(data, device, num_tokens_per_row, batch_size, data_type): # Ted: TODO: Now actually consider to pass <config> in <get_batch> and <estimate_loss>.
+    """Get a batch from the inputted data.
+    This is modified to simply take in the array.
+    """
+    # Ted: TODO: Below can be adjusted to learning history rows.
+    # Ted: TODO: <block_size> is then likely to be dynamic and require padding. E.g. initially we need small block_size but later on maybe larger since challenges will get more and more difficult.
+
+    num_examples = 9000 if data_type == 'train' else 1000  # Ted: TODO: Here hard-coded number of rows of training file. Modify later!
+    ix = torch.randint(num_examples, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow. # Should mean indices for rows in training file.
+    #z_x = [len(torch.from_numpy((data[i * num_tokens_per_row : i * num_tokens_per_row + (num_tokens_per_row - 1 - 1)]).astype(np.int64))) for i in ix] # Ted: DEBUG.
+    #print(z_x) # Ted: DEBUG.
+    #z_y = [len(torch.from_numpy((data[i * num_tokens_per_row + 1 : i * num_tokens_per_row + 1 + (num_tokens_per_row - 1 - 1)]).astype(np.int64))) for i in ix] # Ted: DEBUG.
+    #print(z_y) # Ted: DEBUG.
+
+    x = torch.stack([torch.from_numpy((data[i * num_tokens_per_row : i * num_tokens_per_row + (num_tokens_per_row - 1 - 1)]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, block_size]; Stack into a batch tensor where starting positions are sampled from list <ix>. Note the first minus one is to remove '\n', the second is because recall we need to predict last token, so only need up to second last token.
+    print(x.size()) # Ted: DEBUG.
+    y = torch.stack([torch.from_numpy((data[i * num_tokens_per_row + 1 : i * num_tokens_per_row + 1 + (num_tokens_per_row - 1 - 1)]).astype(np.int64)) for i in ix])
+    print(y.size()) # Ted: DEBUG.
+
+# Ted: Below legacy code.
+#    ix = torch.randint(num_examples - block_size, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow. # Should mean indices for rows in training file.
+#    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, block_size]; Stack into a batch tensor where starting positions are sampled from list <ix>.
+#    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
+
+
+    if 'cuda' in device:
+        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
+    else:
+        x, y = x.to(device), y.to(device) # Ted: Move a tensor to device.
+    return x, y
+
+
+
+
 # helps estimate an arbitrarily accurate loss over either split using many batches
 @torch.no_grad()
-def estimate_loss(model, context, eval_iters):
+def estimate_loss(model, context, eval_iters, train_data, val_data, config_device, config_num_tokens_row_train, config_batch_size):
     out = {}
     model.eval()
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
+        data_for_batch = train_data if split == 'train' else val_data
         for k in range(eval_iters):
-            X, Y = get_batch(split)
+            X, Y = get_batch(data_for_batch, config_device, config_num_tokens_row_train, config_batch_size, split)
             with context:
                 _, loss = model(X, Y)
             losses[k] = loss.item()
+            #print("k: " + str(k) + "; Estimate_loss: " + str(losses[k])) # Ted: DEBUG.
         out[split] = losses.mean()
     model.train()
     return out
@@ -84,22 +124,6 @@ def get_lr(it, learning_rate, warmup_iters, lr_decay_iters, min_lr):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-
-def get_batch(data, device, block_size, batch_size):
-    """Get a batch from the inputted data.
-    This is modified to simply take in the array.
-    """
-    # Ted: TODO: Below can be adjusted to learning history rows.
-    # Ted: TODO: <block_size> is then likely to be dynamic and require padding. E.g. initially we need small block_size but later on maybe larger since challenges will get more and more difficult.
-    ix = torch.randint(len(data) - block_size, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow.
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, block_size]; Stack into a batch tensor where starting positions are sampled from list <ix>.
-    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
-    if 'cuda' in device:
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
-    else:
-        x, y = x.to(device), y.to(device) # Ted: Move a tensor to device.
-    return x, y
 
 
 
@@ -155,16 +179,13 @@ def train(config, start_from_scratch):
         meta_vocab_size = meta['vocab_size']
         print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
-    # optimizer
-    optimizer = model.configure_optimizers(
-        config['weight_decay'], config['learning_rate'], (config['beta1'], config['beta2']), 'cuda' if 'cuda' in config['device'] else 'cpu'
-    )
+
 
     # model init
     model_args = dict(n_layer=config['n_layer'], n_head=config['n_head'], n_embd=config['n_embd'], block_size=config['block_size'],
                     bias=config['bias'], vocab_size=None, dropout=config['dropout'])
     if start_from_scratch:
-        model = create_model_from_scratch(model_args, meta_vocab_size)
+        model = create_model_from_scratch(model_args, meta_vocab_size) # Ted: Okay, if really want can control here for the vocab of model and adjust target vector accordingly.
     else:
         model, checkpoint, iter_num, best_val_loss = load_model(model_args, config)
         optimizer.load_state_dict(checkpoint)
@@ -174,22 +195,28 @@ def train(config, start_from_scratch):
         model_args['block_size'] = config['block_size'] # so that the checkpoint will have the right value
     model.to(config['device'])
 
+    # initialize a GradScaler. If enabled=False scaler is a no-op
+    scaler = torch.cuda.amp.GradScaler(enabled=(config['dtype'] == 'float16')) # Ted: To prevent numerical instability.
+
+    # optimizer
+    optimizer = model.configure_optimizers(
+        config['weight_decay'], config['learning_rate'], (config['beta1'], config['beta2']), 'cuda' if 'cuda' in config['device'] else 'cpu'
+    )
+
     # compile the model
     if config['compile']:
         print("compiling the model... (takes a ~minute)")
         unoptimized_model = model  # Mark: Can we remove this line?
         model = torch.compile(model) # requires PyTorch 2.0
 
-    # initialize a GradScaler. If enabled=False scaler is a no-op
-    scaler = torch.cuda.amp.GradScaler(enabled=(config['dtype'] == 'float16')) # Ted: To prevent numerical instability.
-
     # training loop
-    X, Y = get_batch(train_data, config['device'], config['block_size'], config['batch-size']) # fetch the very first batch
+    X, Y = get_batch(train_data, config['device'], config['num_tokens_row_train'], config['batch_size'], 'train') # fetch the very first batch
     t0 = time.time()
     local_iter_num = 0 # number of iterations in the lifetime of this process
     raw_model = model
     running_mfu = -1.0
     while True:
+        #print("iter_num: " + str(iter_num)) # Ted: DEBUG.
         # determine and set the learning rate for this iteration
         lr = get_lr(
             iter_num, config['learning_rate'], config['warmup_iters'], config['lr_decay_iters'], config['min_lr']
@@ -198,7 +225,8 @@ def train(config, start_from_scratch):
             param_group['lr'] = lr
         # evaluate the loss on train/val sets and write checkpoints
         if iter_num % config['eval_interval'] == 0:
-            losses = estimate_loss(model, context, config['eval_iters'])
+            #print("Here: before estimate_loss") # Ted: DEBUG.
+            losses = estimate_loss(model, context, config['eval_iters'], train_data, val_data, config['device'], config['num_tokens_row_train'], config['batch_size'])
             print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
             if losses['val'] < best_val_loss or config['always_save_checkpoint']:
                 best_val_loss = losses['val']
@@ -221,7 +249,7 @@ def train(config, start_from_scratch):
             with context:
                 logits, loss = model(X, Y)
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_batch(train_data, config['device'], config['block_size'], config['batch_size'])
+            X, Y = get_batch(train_data, config['device'], config['num_tokens_row_train'], config['batch_size'], 'train')
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
         # clip the gradient
@@ -253,4 +281,4 @@ def train(config, start_from_scratch):
 
 
 if __name__ == '__main__':
-    train()
+    train_from_scratch() # hydra will fill in <config> parameter.

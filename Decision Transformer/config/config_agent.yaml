@@ -3,14 +3,14 @@ representation: internal_repr  # color or internal_repr
 
 n_layer: 1
 n_heads: 1
-n_inner: 1
+n_inner: 128
 
 num_examples: 10
 len_examples: 1
 
-num_epochs: 10
+num_epochs: 100
 batch_size: 128
-learning_rate: 1e-2
+learning_rate: 1e-3
 decay_rate: 0
 
 # Configurations for hydra itself

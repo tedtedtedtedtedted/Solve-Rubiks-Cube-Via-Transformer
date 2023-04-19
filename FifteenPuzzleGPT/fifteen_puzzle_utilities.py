@@ -218,4 +218,4 @@ def puzzle_generate_training_file(num_examples: int, num_permute: int):
 
 
 if __name__ == "__main__":
-    puzzle_generate_training_file(10000, 20)
+    puzzle_generate_training_file(500, 50)

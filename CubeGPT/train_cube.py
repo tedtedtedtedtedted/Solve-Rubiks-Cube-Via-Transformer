@@ -13,6 +13,7 @@ from model import GPTConfig, GPT
 import logging  # Better than printing because it is saved in a log file as well
 
 import hydra
+import random
 
 
 def create_model_from_scratch(model_args, meta_vocab_size):
@@ -63,17 +64,21 @@ def get_batch(data, device, num_tokens_per_row, batch_size, data_type): # Ted: T
     # Ted: TODO: Below can be adjusted to learning history rows.
     # Ted: TODO: <block_size> is then likely to be dynamic and require padding. E.g. initially we need small block_size but later on maybe larger since challenges will get more and more difficult.
 
-    num_examples = 9000 if data_type == 'train' else 1000  # Ted: TODO: Here hard-coded number of rows of training file. Modify later!
+    num_examples = 90000 if data_type == 'train' else 10000  # Ted: TODO: Here hard-coded number of rows of training file. Modify later!
     ix = torch.randint(num_examples, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow. # Should mean indices for rows in training file.
     #z_x = [len(torch.from_numpy((data[i * num_tokens_per_row : i * num_tokens_per_row + (num_tokens_per_row - 1 - 1)]).astype(np.int64))) for i in ix] # Ted: DEBUG.
     #print(z_x) # Ted: DEBUG.
     #z_y = [len(torch.from_numpy((data[i * num_tokens_per_row + 1 : i * num_tokens_per_row + 1 + (num_tokens_per_row - 1 - 1)]).astype(np.int64))) for i in ix] # Ted: DEBUG.
     #print(z_y) # Ted: DEBUG.
-
-    x = torch.stack([torch.from_numpy((data[i * num_tokens_per_row : i * num_tokens_per_row + (num_tokens_per_row - 1 - 1)]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, block_size]; Stack into a batch tensor where starting positions are sampled from list <ix>. Note the first minus one is to remove '\n', the second is because recall we need to predict last token, so only need up to second last token.
-    print(x.size()) # Ted: DEBUG.
-    y = torch.stack([torch.from_numpy((data[i * num_tokens_per_row + 1 : i * num_tokens_per_row + 1 + (num_tokens_per_row - 1 - 1)]).astype(np.int64)) for i in ix])
-    print(y.size()) # Ted: DEBUG.
+    # TODO: Before serious training, check correctness here one more time!
+    permutation_length_max = 10 # TODO: A hyper parameter that is fixed for now! # Excluding "DONE" action!
+    permutation_length = random.randint(0, permutation_length_max) # How many (strict, no "DONE") actions we want to have left.
+    truncate_size = (permutation_length_max - permutation_length) * (1 + 26 + 1 + 1)
+    
+    x = torch.stack([torch.from_numpy((data[i * num_tokens_per_row + truncate_size : (i + 1) * num_tokens_per_row - 1]).astype(np.int64)) for i in ix]) # Ted: Dimension: [batch_size, seq_len]; Stack into a batch tensor where starting positions are sampled from list <ix>. Note the minus one is because recall we need to predict last token, so only need up to second last token.
+    #print(x) # Ted: DEBUG.
+    y = torch.stack([torch.from_numpy((data[i * num_tokens_per_row + truncate_size + 1 : (i + 1) * num_tokens_per_row]).astype(np.int64)) for i in ix])
+    #print(y) # Ted: DEBUG.
 
 # Ted: Below legacy code.
 #    ix = torch.randint(num_examples - block_size, (batch_size,)) # Ted: Generate a random 1D tensor of size batch_size with value from 0 to <arg_1> so to not overflow. # Should mean indices for rows in training file.
@@ -103,6 +108,7 @@ def estimate_loss(model, context, eval_iters, train_data, val_data, config_devic
             X, Y = get_batch(data_for_batch, config_device, config_num_tokens_row_train, config_batch_size, split)
             with context:
                 _, loss = model(X, Y)
+                #print("loss estimate_loss: " + str(loss)) # DEBUG.
             losses[k] = loss.item()
             #print("k: " + str(k) + "; Estimate_loss: " + str(losses[k])) # Ted: DEBUG.
         out[split] = losses.mean()
@@ -163,8 +169,8 @@ def train(config, start_from_scratch):
 
     # poor man's data loader
     data_dir = os.path.join('data', config['dataset'])
-    train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r') # Ted: Allow to read large file without needing to fit entire file into physical memory (i.e. RAM).
-    val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
+    train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint32, mode='r') # Ted: Allow to read large file without needing to fit entire file into physical memory (i.e. RAM).
+    val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint32, mode='r')
 
     # init these up here, can override if init_from_scratch is False (i.e. from a checkpoint)
     iter_num = 0
@@ -196,7 +202,7 @@ def train(config, start_from_scratch):
     model.to(config['device'])
 
     # initialize a GradScaler. If enabled=False scaler is a no-op
-    scaler = torch.cuda.amp.GradScaler(enabled=(config['dtype'] == 'float16')) # Ted: To prevent numerical instability.
+    scaler = torch.cuda.amp.GradScaler(enabled=(config['dtype'] == 'float32')) # Ted: To prevent numerical instability.
 
     # optimizer
     optimizer = model.configure_optimizers(
@@ -248,10 +254,17 @@ def train(config, start_from_scratch):
         for micro_step in range(gradient_accumulation_steps):
             with context:
                 logits, loss = model(X, Y)
+            loss_debug_raw = loss.item() # DEBUG.
+            #print("loss micro_step: " + str(loss)) # DEBUG.
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_batch(train_data, config['device'], config['num_tokens_row_train'], config['batch_size'], 'train')
             # backward pass, with gradient scaling if training in fp16
+            #print("GradScaler: loss before: " + str(loss)) # DEBUG.
             scaler.scale(loss).backward()
+            #print("GradScaler: loss after: " + str(loss)) # DEBUG.
+            if (loss_debug_raw != loss.item()): # DEBUG.
+                print("BUG: GradScaler is discounting loss! Raw: " + str(loss_debug_raw) + "; Scaled: " + str(loss.item())) # DEBUG.
+
         # clip the gradient
         if config['grad_clip'] != 0.0:
             scaler.unscale_(optimizer)

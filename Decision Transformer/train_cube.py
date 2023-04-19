@@ -278,12 +278,13 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
 
     return action_preds[0, -1]
 
-def run_tests(model, device):
+def run_tests(model, device, num_per_shuffle=10, num_shuffles={1, 2, 3, 5, 10, 20}):
     """Must have the global variables mean and std set properly"""
     global mean, std
-    num_per_shuffle = 10
     logging.info(f"Running {num_per_shuffle} tests per shuffle.")
-    for num_shuffle in {1, 2, 3, 5, 10, 20}:
+    average_rewards = []
+    all_num_solved = []
+    for num_shuffle in num_shuffles:
         total_reward = 0
         num_times_solved = 0
         for _ in range(num_per_shuffle):
@@ -291,8 +292,11 @@ def run_tests(model, device):
             num_times_solved += is_solved
             total_reward += reward
         average_reward = total_reward / num_per_shuffle
+        all_num_solved.append(num_times_solved)
+        average_rewards.append(average_reward)
         logging.info(f"number of shuffles: {num_shuffle} - number of times solved: {num_times_solved}, average reward: {average_reward}")
 
+    return all_num_solved, average_rewards
 
 
 def run_test(model, num_shuffles, device, mean, std, verbose=False, epsilon=0):
@@ -366,7 +370,6 @@ def run_test(model, num_shuffles, device, mean, std, verbose=False, epsilon=0):
         return done, sum(rewards), states, actions
 
     return done, sum(rewards)
-
 
 if __name__ == '__main__':
     train_from_scratch()

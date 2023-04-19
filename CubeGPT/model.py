@@ -16,7 +16,9 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from data.cube_structure.prepare import stoi, itos # Ted: Python allows importing variables from another file! This is the tokenization. 
-from cube_utilities import internal_to_color, color_to_internal, cube_permute, action_space, action_space_strict
+from cube_utilities import internal_to_color, color_to_internal, cube_permute, action_space, action_space_strict, is_solved
+
+torch.set_printoptions(threshold=torch.inf) # TODO: DEBUG. Remove later. This is to print tensor fully for debugging.
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -51,45 +53,72 @@ class CausalSelfAttention(nn.Module):
         self.resid_dropout = nn.Dropout(config.dropout)
         self.n_head = config.n_head
         self.n_embd = config.n_embd
-        self.dropout = config.dropout
+        self.dropout = config.dropout if self.training else 0
         # flash attention make GPU go brrrrr but support is only in PyTorch nightly and still a bit scary
-        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention') and self.dropout == 0.0
-        if not self.flash:
-            print("WARNING: using slow attention. Flash Attention atm needs PyTorch nightly and dropout=0.0")
+        #self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention') and self.dropout == 0.0
+        #print(hasattr(torch.nn.functional, 'scaled_dot_product_attention')) # DEBUG.
+        #print(not self.training) # DEBUG
+        #self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention') and not self.training # Ted: Dangerous to modify! Wrong to do because <__init__()> will not be called after initialization. 
+        #print(self.flash)
+
+        #if not self.flash: # TODO: Come back later and modify here.
+            #print("WARNING: using slow attention. Flash Attention atm needs PyTorch nightly and dropout=0.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
             #self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
             #                            .view(1, 1, config.block_size, config.block_size))
            
-            # Ted: Below shift masking, assuming the first 28 tokens are not to predict, but rather given as puzzle context.
-            size_puzzle_tokens = 1 + 26 + 1
-            extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
-            mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)  
-            mask = mask.view(1, 1, config.block_size, config.block_size)
-            self.register_buffer("bias", mask)
+        # Ted: Below shift masking, assuming the first 28 tokens are not to predict, but rather given as puzzle context.
+        size_puzzle_tokens = 1 + 26 + 1 # TODO: Bug! Only mask during training! Here mask in both training and inference time!
+        extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
+        mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)  
+        mask = mask.view(1, 1, config.block_size, config.block_size)
+        self.register_buffer("bias", mask)
+        # print(self.bias) # DEBUG.
 
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
+        # print("B: " + str(B) + "; T: " + str(T) + "; C: " + str(C)) # DEBUG.
 
+        # print("x: " + str(x)) # DEBUG.
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         q, k ,v  = self.c_attn(x).split(self.n_embd, dim=2)
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
 
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        if self.flash:
-            # efficient attention using Flash Attention CUDA kernels
-            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout, is_causal=True) # Ted: Why does NanoGPT set <attn_mask = None>? Because we use flash attention during inference time not training time.
-        else:
-            # manual implementation of attention
-            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # Ted: Dim: [batch_size, num_heads, seq_len, seq_leln].
-            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
-            att = F.softmax(att, dim=-1)
-            att = self.attn_dropout(att)
-            y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+        # print("q: " + str(q)) # DEBUG.
+        # print("k: " + str(k)) # DEBUG.
+        # print("v: " + str(v)) # DEBUG.
 
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        # self.flash = not self.training # Problem is that dropout layer is already initialized.
+        # print("training time self.flash: " + str(self.flash))
+#        if self.flash:
+#            # efficient attention using Flash Attention CUDA kernels
+#            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True) # Ted: Why does NanoGPT set <attn_mask = None>? Because we use flash attention during inference time not training time.
+#        else:
+            # manual implementation of attention
+        # Ted: Always use home-made masking, even with slow attention.
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # Ted: Dim: [batch_size, num_heads, seq_len, seq_leln].
+        # print("att raw: ") # DEBUG.
+        # print(att) # DEBUG.
+        #if self.training == True:
+        if True: # TODO: Change it back!!! DEBUG. Reason is that there is huge discrepancy between inference time evaluation and train time evaluation.
+            #print("Trainig time. Masking") # DEBUG.
+            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf')) # Ted: Only take what we need from the mask.
+        #else:
+            #print("Inference time. No masking") # DEBUG.
+        att = F.softmax(att, dim=-1)
+        #print("att_dim: ") # DEBUG.
+        #print(att.size()) # DEBUG.
+        #print("att: ") # DEBUG.
+        #print(att) # DEBUG.
+        att = self.attn_dropout(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        #print("att @ v: ") # DEBUG.
+        #print(y) # DEBUG.
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
         # output projection
         y = self.resid_dropout(self.c_proj(y))
         return y
@@ -100,7 +129,7 @@ class MLP(nn.Module):
         super().__init__()
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
         self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        self.dropout = nn.Dropout(config.dropout)
+        self.dropout = nn.Dropout(config.dropout if self.training else 0)
 
     def forward(self, x):
         x = self.c_fc(x)
@@ -144,7 +173,7 @@ class GPT(nn.Module):
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             wpe = nn.Embedding(config.block_size, config.n_embd),
-            drop = nn.Dropout(config.dropout),
+            drop = nn.Dropout(config.dropout if self.training else 0),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
@@ -161,7 +190,27 @@ class GPT(nn.Module):
         for pn, p in self.named_parameters():
             if pn.endswith('c_proj.weight'):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
-
+#        self.cross_entropy_weight = torch.tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 7., 7.,
+#                                                  7., 7., 7., 7., 7., 7., 7., 7., 7., 7.,
+#                                                  7., 7., 7., 7., 7., 7., 7., 1., 1.]).cuda() # More weights for 19 actions including "DONE". # TODO: Can try even more emphasis and also on special tokens.
+        self.cross_entropy_weight = torch.tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                                  0., 0., 0., 0., 0., 0., 0., 0., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 0.1, 0., 0.]).cuda() 
+        #self.cross_entropy_weight = self.cross_entropy_weight / self.cross_entropy_weight.sum()
         # report number of parameters
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
@@ -188,6 +237,8 @@ class GPT(nn.Module):
     def forward(self, idx, targets=None):
         device = idx.device
         b, t = idx.size() # Ted: In "train_cube.py" <model(X, Y)>, <X> is <idx> here so training batch.
+        #print("batch size: " + str(b)) # DEBUG.
+        #print("seq length: " + str(t)) # DEBUG.
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t)
 
@@ -202,7 +253,16 @@ class GPT(nn.Module):
         if targets is not None:
             # if we are given some desired targets also calculate the loss
             logits = self.lm_head(x)
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            #print("logits:") # DEBUG.
+            #print(logits.view(-1, logits.size(-1)).size()) # DEBUG.
+            #print(logits.view(-1, logits.size(-1))) # DEBUG.
+            #print("Targets:") # DEBUG.
+            #print(targets.view(-1).size()) # DEBUG.
+            #print(targets.view(-1)) # DEBUG.
+            # TODO: Weighted cross entropy!
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, weight=self.cross_entropy_weight)
+            #print("training? " + str(self.training)) # DEBUG.
+            print("loss: " + str(loss)) # DEBUG.
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim # Ted: select last token of sequence.
@@ -295,7 +355,7 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens=35, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
+    def generate(self, idx, inference_method, max_new_tokens=35, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
@@ -304,6 +364,7 @@ class GPT(nn.Module):
     
         assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input (token) length is at least 1 + 26 + 1.
         curr_state = idx[0].tolist()
+        #curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
         curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
         curr_state = [itos[i] for i in curr_state] # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
         curr_state = internal_to_color(curr_state) # Ted: Need in color representation not internal representation, and in string format!
@@ -314,39 +375,55 @@ class GPT(nn.Module):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
             # forward the model to get the logits for the index in the sequence
+            #print("idx_cond: " + str(idx_cond)) # DEBUG.
             logits, _ = self(idx_cond) # Ted: Calling prediction.
             # pluck the logits at the final step and scale by desired temperature
             logits = logits[:, -1, :] / temperature
             # optionally crop the logits to only the top k options
-            if top_k is not None:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float('Inf')
+#            if top_k is not None: # TODO: Uncomment!
+#                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+#                logits[logits < v[:, [-1]]] = -float('Inf')
             # apply softmax to convert logits to (normalized) probabilities
+            
+            #print("logits: " + str(logits)) # DEBUG.
             probs = F.softmax(logits, dim=-1)
             # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1) # Ted: Return a tensor of one number which is the position index <i> and occur with probability <probs[i]>.
+            #print("probs: " + str(probs)) # DEBUG.
+            idx_next = torch.multinomial(probs, num_samples=1) # Ted: Return a tensor of one number which is the position index <i> and occur with probability a (multinomial distribution) function of <prob>.
+            
+            if inference_method == "token": # Generate token-by-token.
+                # append sampled index to the running sequence and continue
+                idx = torch.cat((idx, idx_next), dim=1)
+            else:
+                # Ted: Found it! Autoregressive with transition function here!
+                move = itos[int(idx_next.item())] # Ted: <int()> cast is unnecessary but avoid complaining.
+                print("move: " + move) # DEBUG.
+                if (move not in action_space):
+                    # Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry.
+                    print("Invaild move, replace with random") # DEBUG.
+                    move = random.choice(action_space_strict) # replace with random move.
+                # Concatenate action.
+                print("true move: " + move) # DEBUG.
+                if (move == 'DONE'): # Just return and be done.
+                    if (is_solved(curr_state)):
+                        return idx
+                    else:
+                        print("Not DONE, replace with random") # DEBUG.
+                        move = random.choice(action_space_strict) # replace with random move.
+                        
+                idx_next = torch.tensor([[stoi[move]]]) # Update <idx_next> (i.e. move).
+                idx = torch.cat((idx, idx_next.cuda()), dim=1) # Concatenate new action.
+                # Concatenate next state and separators.
+                separator_state_begin = "I_SB"
+                separator_state_end = "I_SE"
+                separator_state_begin = torch.tensor([[stoi[separator_state_begin]]])
+                separator_state_end = torch.tensor([[stoi[separator_state_end]]])
+                idx = torch.cat((idx, separator_state_begin.cuda()), dim=1) # Concatenate new state-begin separator.
+                curr_state = cube_permute(curr_state, move) # Ted: Note <cube_permute> takes in color representation, not internal representation.
+                state_tensor = color_to_internal(curr_state)
+                state_tensor = torch.tensor([[stoi[c] for c in state_tensor]]) # Ted: Encode.
+                idx = torch.cat((idx, state_tensor.cuda()), dim=1)
+                idx = torch.cat((idx, separator_state_end.cuda()), dim=1) # Concatenate new state-end separator.
 
-            # append sampled index to the running sequence and continue
-            #idx = torch.cat((idx, idx_next), dim=1) # Ted: Found it! Autoregressive with transition function here!
-            move = itos[int(idx_next.item())] # Ted: <int()> cast is unnecessary but avoid complaining.
-            if (move not in action_space):
-                # Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry. 
-                move = random.choice(action_space_strict) # replace with random move.
-            # Concatenate action.
-            idx_next = torch.tensor([[stoi[move]]]) # Update <idx_next> (i.e. move).
-            idx = torch.cat((idx, idx_next), dim=1) # Concatenate new action.
-            if (move == 'DONE'): # Just return and be done.
-                return idx 
-            # Concatenate next state and separators.
-            separator_state_begin = "I_SB"
-            separator_state_end = "I_SE"
-            separator_state_begin = torch.tensor([[stoi[separator_state_begin]]])
-            separator_state_end = torch.tensor([[stoi[separator_state_end]]])
-            idx = torch.cat((idx, separator_state_begin), dim=1) # Concatenate new state-begin separator.
-            curr_state = cube_permute(curr_state, move) # Ted: Note <cube_permute> takes in color representation, not internal representation.
-            state_tensor = color_to_internal(curr_state)
-            state_tensor = torch.tensor([[stoi[c] for c in state_tensor]]) # Ted: Encode.
-            idx = torch.cat((idx, state_tensor), dim=1)
-            idx = torch.cat((idx, separator_state_end), dim=1) # Concatenate new state-end separator.
             
         return idx

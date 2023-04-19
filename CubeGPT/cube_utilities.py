@@ -422,6 +422,15 @@ def init_state(repr_mode: str):
     return "".join(state)
 
 
+
+def is_solved(state: str):
+    """
+    - ITO color representation.
+    """
+    solved_state = init_state("")
+    return state == solved_state
+
+
 #def challenge_generator(n: int, repr_mode: str, random_start: bool):
 def challenge_generator(num_permute: int, repr_mode: str):
     """
@@ -579,12 +588,12 @@ def challenge_format(challenge: list[str]):
 
 
 
-def cube_generate_training_file(num_examples: int, num_permute: int):
+def cube_generate_training_file(num_examples: int, num_permute: int, file_name: str):
     """
     - num_examples: How many problem-solutions to generate.
     - seq_len: One file contains same action length solution.
     """
-    with open("./data/cube_structure/input.txt", "a") as file:
+    with open("./data/cube_structure/" + file_name, "a") as file:
         file.truncate(0)
         for _ in range(num_examples):
             challenge = challenge_generator(num_permute, "internal_repr") # Insert strings backwards so to not mess up with indexing.
@@ -599,17 +608,23 @@ if __name__ == "__main__":
 
     #print(challenge_generator(5, "internal_repr", False))
     #write_cube_structure_data_to_file(10000) # TODO: Future pass file path.
-    cube_generate_training_file(10000, 5)
+   
+
+    cube_generate_training_file(100000, 10, "input.txt")
+
+
+    #print(challenge_generator(1, 'internal_repr'))
+
+
     #print(challenge_generator(10, "internal_repr"))
     #print(init_state("haha"))
     #print(color_to_internal(init_state("haha")))
 
 
-
     #state = init_state("haha")
     #print(state)
-    #state = cube_permute(state, "u")
-    #print("u")
+    #state = cube_permute(state, "u-")
+    #print("u-")
     #print(state)
     #state = cube_permute(state, "B")
     #print("B")

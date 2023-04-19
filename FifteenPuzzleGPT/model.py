@@ -17,7 +17,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 # Ted: Python allows importing variables from another file! This is the tokenization.
 from data.puzzle_structure.prepare import stoi, itos
-from fifteen_puzzle_utilities.py import internal_to_color, color_to_internal, cube_permute, action_space, action_space_strict
+from fifteen_puzzle_utilities import internal_to_color, color_to_internal, cube_permute, action_space, action_space_strict
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 

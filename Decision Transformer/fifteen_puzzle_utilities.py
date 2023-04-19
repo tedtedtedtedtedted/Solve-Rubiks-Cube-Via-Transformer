@@ -38,10 +38,10 @@ def tokenize_action(action):
 
 def tokenize_state(state):
     """
-    - Input: (str) A state in internal_representation
+    - Input: list[list[int]]) A state in internal_representation
     - Output: (list[ints]) A tokenized representation
     """
-    return state.strip().split(color_repr_separator)  # TODO?
+    return [cell for row in state for cell in row]  # TODO?
     # return list(map(lambda n: states.index(n), state.strip().split(" ")))
 
 
@@ -100,15 +100,15 @@ def internal_cube_permute(starting_state: str, moves: str):
     """
     starting_state = [row.copy() for row in starting_state]
     empty_r, empty_c = -2, -2
-    size = len(starting_state)
     for i in range(size):
         if 0 in starting_state[i]:
             empty_r = i
             empty_c = starting_state[i].index(0)
             break
 
-    for i in range(len(moves)):
-        action = moves[i]
+    for action in moves:
+        if action == "END":
+            break
         move_r, move_c = action_dict[action]
         new_r, new_c = empty_r + move_r, empty_c + move_c
         if 0 <= new_r < size and 0 <= new_c < size:
@@ -141,10 +141,9 @@ def init_state(repr: str):
 
 def is_done(state):
     """
-    - Input: (str) A state in the internal representation that
+    - Input: (list[list[int]]) A state in the internal representation.
     - Output: (bool) Whether it is the end state
     """
-    size = len(state)
     return all(state[i][j] == i*size+j for i in range(size) for j in range(size))
 
 
@@ -171,6 +170,15 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
         record[2 * i +
                2] = internal_cube_permute(record[2 * i], [actions_for_record[i]])
 
+    # get to correct representation
+    if repr_mode == "color_repr":
+        for i in range(n+1):
+            record[2 * i] = internal_to_color(record[2 * i])
+
+    return record
+
+
+def record_reverse(record):
     # reverse
     empty_r, empty_c = -2, -2
     size = len(record[0])
@@ -180,6 +188,7 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
             empty_c = record[0][i].index(0)
             break
 
+    n = len(record) // 2
     inverse_actions = {"l": "r", "r": "l", "u": "d", "d": "u"}
     # Invert actions in list.
     for i in range(n):
@@ -189,19 +198,9 @@ def challenge_generator(n: int, repr_mode: str, random_start: bool):
             # if this doesn't hold, then action did notihng
             # so before and after state are same and inverse action is the original action
             record[2 * i + 1] = inverse_actions[action]
+
     record.reverse()
-
-    # get to correct representation
-    if repr_mode == "internal_repr":
-        for i in range(n+1):
-            record[2*i] = " ".join([str(cell) for row in record[2*i]
-                                   for cell in row])
-    elif repr_mode == "color_repr":
-        for i in range(n+1):
-            record[2 * i] = internal_to_color(record[2 * i])
-
-    # Return type: List of states (color repr so str) and actions (str).
-    return record
+    return record + ["END"]
 
 
 def cube_visualize(state: str):

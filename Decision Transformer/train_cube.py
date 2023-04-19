@@ -47,7 +47,7 @@ class DecisionTransformerDataCollator:
     state_std: np.array = None  # to store state stds
     n_traj: int = 0 # to store the number of trajectories in the dataset
 
-    def __init__(self, states, actions, state_dim=26) -> None:
+    def __init__(self, states, actions, state_dim=26, normalize=True) -> None:
         self.state_dim = state_dim
         self.states = states
         self.actions = actions
@@ -60,7 +60,10 @@ class DecisionTransformerDataCollator:
         traj_lens = np.array(traj_lens)
         self.p_sample = traj_lens / sum(traj_lens)
 
-        self.state_mean, self.state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
+        if normalize:
+            self.state_mean, self.state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
+        else:
+            self.state_mean, self.state_std = 0, 1
 
         global mean, std
         mean = self.state_mean
@@ -162,7 +165,7 @@ class TrainableDT(DecisionTransformerModel):
 
 
 
-def train(config, start_from_scratch):
+def train(config, start_from_scratch, normalize=True, states=None, actions=None):
     """Trains a model on the current configurations.
     config: The dictionary of configurations.
     start_from_scratch: If False, load a previous checkpoint. Otherwise, start from scratch.
@@ -176,12 +179,6 @@ def train(config, start_from_scratch):
     num_examples = config['num_examples']
     len_examples = config['len_examples']
 
-    # Generate the challenges
-    challenges = [reverse_record(challenge_generator(len_examples, config['representation'], False)) for _ in range(num_examples)]
-
-    # Bad Examples
-    challenges += [reverse_record(challenge_generator(len_examples, config['representation'], True)) for _ in range(num_examples)]
-
     if config['representation'] == 'color':
         state_tokenizer = tokenize_colors
         state_dim = 54
@@ -189,22 +186,29 @@ def train(config, start_from_scratch):
         state_tokenizer = tokenize_state
         state_dim = 26
 
-    states = [list(map(state_tokenizer, challenge[::2])) for challenge in challenges]
-    actions = [list(map(tokenize_action, challenge[1::2])) for challenge in challenges]
-    #rewards = [[-1] * (len_examples - 1) + [10] for _ in range(num_examples)] \
-    #            + [[-1] * len_examples for _ in range(num_examples)]
+    # Generate the challenges
+    if states is None:
+        challenges = [reverse_record(challenge_generator(len_examples, config['representation'], False)) for _ in range(num_examples)]
 
-    collator = DecisionTransformerDataCollator(states, actions, state_dim)
+        states = [list(map(state_tokenizer, challenge[::2])) for challenge in challenges]
+        actions = [list(map(tokenize_action, challenge[1::2])) for challenge in challenges]
+        #rewards = [[-1] * (len_examples - 1) + [10] for _ in range(num_examples)] \
+        #            + [[-1] * len_examples for _ in range(num_examples)]
 
-    DTconfig = DecisionTransformerConfig(
-        state_dim=collator.state_dim,
-        act_dim=collator.act_dim,
-        n_head=config['n_heads'],
-        n_inner=config['n_inner'],
-        n_layer=config['n_layer'],
-        action_tanh=False
-    )
-    model = TrainableDT(DTconfig)
+    collator = DecisionTransformerDataCollator(states, actions, state_dim, normalize)
+
+    if start_from_scratch:
+        DTconfig = DecisionTransformerConfig(
+            state_dim=collator.state_dim,
+            act_dim=collator.act_dim,
+            n_head=config['n_heads'],
+            n_inner=config['n_inner'],
+            n_layer=config['n_layer'],
+            action_tanh=False
+        )
+        model = TrainableDT(DTconfig)
+    else:
+        model = TrainableDT.from_pretrained("trained_model")
 
     training_args = TrainingArguments(
         output_dir="output/",
@@ -216,7 +220,7 @@ def train(config, start_from_scratch):
         warmup_ratio=0.1,
         optim="adamw_torch",
         max_grad_norm=0.5,
-        logging_steps=10,
+        logging_steps=100,
         logging_dir="log"
     )
 
@@ -234,7 +238,8 @@ def train(config, start_from_scratch):
     logSave.write(str(trainer.state.log_history) + '\n')
     logSave.close()
 
-    logging.info(f"mean: {mean}, std: {std}")
+    if normalize:
+        logging.info(f"mean: {mean}, std: {std}")
 
     return model
 
@@ -275,13 +280,14 @@ def get_action(model, states, actions, rewards, returns_to_go, timesteps):
 
 def run_tests(model, device):
     """Must have the global variables mean and std set properly"""
+    global mean, std
     num_per_shuffle = 10
     logging.info(f"Running {num_per_shuffle} tests per shuffle.")
     for num_shuffle in {1, 2, 3, 5, 10, 20}:
         total_reward = 0
         num_times_solved = 0
         for _ in range(num_per_shuffle):
-            is_solved, reward = run_test(model, num_shuffle, device)
+            is_solved, reward = run_test(model, num_shuffle, device, mean, std)
             num_times_solved += is_solved
             total_reward += reward
         average_reward = total_reward / num_per_shuffle
@@ -289,13 +295,10 @@ def run_tests(model, device):
 
 
 
-def run_test(model, num_shuffles, device):
-    """Must have the global variables mean and std set"""
-    global mean, std
-
-    state_dim = model.config.state_dim  # Number of tokens in every state
-    act_dim = model.config.act_dim # Number of tokens in every action
-    max_ep_len = 30
+def run_test(model, num_shuffles, device, mean, std, verbose=False, epsilon=0):
+    state_dim = 26  # Number of tokens in every state
+    act_dim = 19 # Number of tokens in every action
+    max_ep_len = 2 * (num_shuffles + 1)
     scale = 1
     target_return = 10 - num_shuffles   # We get 10 reward at the end, and -1 otherwise
     episode_return, episode_length = 0, 0
@@ -315,22 +318,23 @@ def run_test(model, num_shuffles, device):
         actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
         rewards = torch.cat([rewards, torch.zeros(1, device=device)])
 
-        action = get_action(
-            model,
-            (states - mean) / std,
-            # states,
-            actions,
-            rewards,
-            target_return,
-            timesteps,
-        )
-        actions[-1] = action
-        action = action.detach().cpu().numpy()
 
-        old = internal_state
+        if np.random.random() < epsilon:
+            action = np.random.randint(0, act_dim - 1)
+        else:
+            action = get_action(
+                model,
+                (states - mean) / std,
+                # states,
+                actions,
+                rewards,
+                target_return,
+                timesteps,
+            )
+            actions[-1] = action
+            action = action.detach().cpu().numpy()
+
         internal_state = internal_cube_permute(internal_state, [get_action_list()[np.argmax(action)]])
-        #cube_visualize(internal_to_color(internal_state))
-        #print(get_action_list()[np.argmax(action)])
         state = np.array(tokenize_state(" ".join(internal_state)))
         done = is_done(internal_state)
         if done:
@@ -350,11 +354,16 @@ def run_test(model, num_shuffles, device):
         episode_length += 1
 
         if done:
+            actions = torch.cat([actions, torch.zeros((1, act_dim), device=device)], dim=0)
+            actions[-1] = 18
             break
 
     logging.debug(states)
     logging.debug(actions)
     logging.debug(rewards)
+
+    if verbose:
+        return done, sum(rewards), states, actions
 
     return done, sum(rewards)
 

@@ -190,11 +190,12 @@ def train(config, start_from_scratch):
     # model init
     model_args = dict(n_layer=config['n_layer'], n_head=config['n_head'], n_embd=config['n_embd'], block_size=config['block_size'],
                     bias=config['bias'], vocab_size=None, dropout=config['dropout'])
+    print("model_args: " + str(model_args))
     if start_from_scratch:
         model = create_model_from_scratch(model_args, meta_vocab_size) # Ted: Okay, if really want can control here for the vocab of model and adjust target vector accordingly.
     else:
         model, checkpoint, iter_num, best_val_loss = load_model(model_args, config)
-        optimizer.load_state_dict(checkpoint)
+        #optimizer.load_state_dict(checkpoint)
     # crop down the model block size if desired, using model surgery
     if config['block_size'] < model.config.block_size:
         model.crop_block_size(config['block_size'])
@@ -208,6 +209,9 @@ def train(config, start_from_scratch):
     optimizer = model.configure_optimizers(
         config['weight_decay'], config['learning_rate'], (config['beta1'], config['beta2']), 'cuda' if 'cuda' in config['device'] else 'cpu'
     )
+
+    if not start_from_scratch:
+        optimizer.load_state_dict(checkpoint['optimizer'])
 
     # compile the model
     if config['compile']:
@@ -295,3 +299,4 @@ def train(config, start_from_scratch):
 
 if __name__ == '__main__':
     train_from_scratch() # hydra will fill in <config> parameter.
+    #train_resume()

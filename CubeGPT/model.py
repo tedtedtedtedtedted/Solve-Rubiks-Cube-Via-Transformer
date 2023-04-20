@@ -66,11 +66,13 @@ class CausalSelfAttention(nn.Module):
             # causal mask to ensure that attention is only applied to the left in the input sequence
             #self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
             #                            .view(1, 1, config.block_size, config.block_size))
-           
+          
         # Ted: Below shift masking, assuming the first 28 tokens are not to predict, but rather given as puzzle context.
         size_puzzle_tokens = 1 + 26 + 1 # TODO: Bug! Only mask during training! Here mask in both training and inference time!
-        extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
-        mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)  
+        #extended_mask = torch.tril(torch.ones(config.block_size + size_puzzle_tokens, config.block_size))
+        #mask = torch.narrow(extended_mask, 0, size_puzzle_tokens, config.block_size)
+        mask = torch.tril(torch.ones(config.block_size, config.block_size))
+        mask[:, :size_puzzle_tokens] = 1 # To not hide starting state.
         mask = mask.view(1, 1, config.block_size, config.block_size)
         self.register_buffer("bias", mask)
         # print(self.bias) # DEBUG.
@@ -104,7 +106,7 @@ class CausalSelfAttention(nn.Module):
         # print("att raw: ") # DEBUG.
         # print(att) # DEBUG.
         #if self.training == True:
-        if True: # TODO: Change it back!!! DEBUG. Reason is that there is huge discrepancy between inference time evaluation and train time evaluation.
+        if True: # TODO: Change it back!!! DEBUG. Reason is that there is huge discrepancy between inference time evaluation and train time evaluation. Actually find it perform better with just masking during inference time.
             #print("Trainig time. Masking") # DEBUG.
             att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf')) # Ted: Only take what we need from the mask.
         #else:
@@ -190,26 +192,26 @@ class GPT(nn.Module):
         for pn, p in self.named_parameters():
             if pn.endswith('c_proj.weight'):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
-#        self.cross_entropy_weight = torch.tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-#                                                  1., 1., 1., 1., 1., 1., 1., 1., 7., 7.,
-#                                                  7., 7., 7., 7., 7., 7., 7., 7., 7., 7.,
-#                                                  7., 7., 7., 7., 7., 7., 7., 1., 1.]).cuda() # More weights for 19 actions including "DONE". # TODO: Can try even more emphasis and also on special tokens.
-        self.cross_entropy_weight = torch.tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
-                                                  0., 0., 0., 0., 0., 0., 0., 0., 1., 1.,
+        self.cross_entropy_weight = torch.tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
                                                   1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
-                                                  1., 1., 1., 1., 1., 1., 0.1, 0., 0.]).cuda() 
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+                                                  1., 1., 1., 1., 1., 1., 1., 1., 28., 28.,
+                                                  28., 28., 28., 28., 28., 28., 28., 28., 28., 28.,
+                                                  28., 28., 28., 28., 28., 28., 1., 1., 1.]).cuda() # More weights for 19 actions including "DONE". # TODO: Can try even more emphasis and also on special tokens.
+#        self.cross_entropy_weight = torch.tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+#                                                  0., 0., 0., 0., 0., 0., 0., 0., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+#                                                  1., 1., 1., 1., 1., 1., 1., 0., 0.]).cuda() 
         #self.cross_entropy_weight = self.cross_entropy_weight / self.cross_entropy_weight.sum()
         # report number of parameters
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
@@ -261,8 +263,18 @@ class GPT(nn.Module):
             #print(targets.view(-1)) # DEBUG.
             # TODO: Weighted cross entropy!
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, weight=self.cross_entropy_weight)
-            #print("training? " + str(self.training)) # DEBUG.
-            print("loss: " + str(loss)) # DEBUG.
+            #loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, weight=self.cross_entropy_weight, reduction='sum') / (b * ((t+1) / 29))
+            #if loss < 0.1 and t / 29 > 4 : #DEBUG.
+            #    print("loss: " + str(loss)) # DEBUG.
+            #    print("perm leng: " + str(t / 29)) # DEBUG.
+            #    print("logits:") # DEBUG.
+            #    print(logits.view(-1, logits.size(-1)).size()) # DEBUG.
+            #    print(logits.view(-1, logits.size(-1))) # DEBUG.
+            #    print("Targets:") # DEBUG.
+            #    print(targets.view(-1).size()) # DEBUG.
+            #    print(targets.view(-1)) # DEBUG.
+            #    print("loss: " + str(loss)) # DEBUG.
+                #print("training? " + str(self.training)) # DEBUG.
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim # Ted: select last token of sequence.
@@ -355,7 +367,7 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, inference_method, max_new_tokens=35, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
+    def generate(self, idx, inference_method, max_new_tokens=200, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
@@ -397,10 +409,10 @@ class GPT(nn.Module):
             else:
                 # Ted: Found it! Autoregressive with transition function here!
                 move = itos[int(idx_next.item())] # Ted: <int()> cast is unnecessary but avoid complaining.
-                print("move: " + move) # DEBUG.
+                #print("move: " + move) # DEBUG.
                 if (move not in action_space):
                     # Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry.
-                    print("Invaild move, replace with random") # DEBUG.
+                    #print("Invaild move, replace with random") # DEBUG.
                     move = random.choice(action_space_strict) # replace with random move.
                 # Concatenate action.
                 print("true move: " + move) # DEBUG.
@@ -408,7 +420,7 @@ class GPT(nn.Module):
                     if (is_solved(curr_state)):
                         return idx
                     else:
-                        print("Not DONE, replace with random") # DEBUG.
+                        #print("Not DONE, replace with random") # DEBUG.
                         move = random.choice(action_space_strict) # replace with random move.
                         
                 idx_next = torch.tensor([[stoi[move]]]) # Update <idx_next> (i.e. move).
@@ -427,3 +439,82 @@ class GPT(nn.Module):
 
             
         return idx
+
+
+
+
+
+
+    @torch.no_grad()
+    def solved_or_not(self, idx, inference_method, max_new_tokens=200, temperature=1.0, top_k=None): # TODO: Add max_new_tokens to "config.yaml" and maybe allow larger number like 100 or 200.
+        """
+        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
+        the sequence max_new_tokens times, feeding the predictions back into the model each time.
+        Most likely you'll want to make sure to be in model.eval() mode of operation for this.
+        """
+    
+        assert idx.size(dim=1) >= 1 + 26 + 1  # Ted: Assume input (token) length is at least 1 + 26 + 1.
+        curr_state = idx[0].tolist()
+        #curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
+        curr_state = curr_state[(-1 - 26):-1] # Omit last token which is end-state-separator.
+        curr_state = [itos[i] for i in curr_state] # Ted: Revert back to internal representation from tokens. 1. Need mapping 2. Need input.
+        curr_state = internal_to_color(curr_state) # Ted: Need in color representation not internal representation, and in string format!
+
+
+
+        for _ in range(max_new_tokens):
+            # if the sequence context is growing too long we must crop it at block_size
+            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
+            # forward the model to get the logits for the index in the sequence
+            #print("idx_cond: " + str(idx_cond)) # DEBUG.
+            logits, _ = self(idx_cond) # Ted: Calling prediction.
+            # pluck the logits at the final step and scale by desired temperature
+            logits = logits[:, -1, :] / temperature
+            # optionally crop the logits to only the top k options
+#            if top_k is not None: # TODO: Uncomment!
+#                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+#                logits[logits < v[:, [-1]]] = -float('Inf')
+            # apply softmax to convert logits to (normalized) probabilities
+            
+            #print("logits: " + str(logits)) # DEBUG.
+            probs = F.softmax(logits, dim=-1)
+            # sample from the distribution
+            #print("probs: " + str(probs)) # DEBUG.
+            idx_next = torch.multinomial(probs, num_samples=1) # Ted: Return a tensor of one number which is the position index <i> and occur with probability a (multinomial distribution) function of <prob>.
+            
+            if inference_method == "token": # Generate token-by-token.
+                # append sampled index to the running sequence and continue
+                idx = torch.cat((idx, idx_next), dim=1)
+            else:
+                # Ted: Found it! Autoregressive with transition function here!
+                move = itos[int(idx_next.item())] # Ted: <int()> cast is unnecessary but avoid complaining.
+                #print("move: " + move) # DEBUG.
+                if (move not in action_space):
+                    # Randomly sample an action or do nothing? Report this? Maybe report when assessing model stability, but good trained model shouldn't let this happen, at least not very often. Try random moves for now to break symmetry.
+                    #print("Invaild move, replace with random") # DEBUG.
+                    move = random.choice(action_space_strict) # replace with random move.
+                # Concatenate action.
+                #print("true move: " + move) # DEBUG.
+                if (move == 'DONE'): # Just return and be done.
+                    if (is_solved(curr_state)):
+                        return True # Did not manage to solve.
+                    else:
+                        #print("Not DONE, replace with random") # DEBUG.
+                        move = random.choice(action_space_strict) # replace with random move.
+                        
+                idx_next = torch.tensor([[stoi[move]]]) # Update <idx_next> (i.e. move).
+                idx = torch.cat((idx, idx_next.cuda()), dim=1) # Concatenate new action.
+                # Concatenate next state and separators.
+                separator_state_begin = "I_SB"
+                separator_state_end = "I_SE"
+                separator_state_begin = torch.tensor([[stoi[separator_state_begin]]])
+                separator_state_end = torch.tensor([[stoi[separator_state_end]]])
+                idx = torch.cat((idx, separator_state_begin.cuda()), dim=1) # Concatenate new state-begin separator.
+                curr_state = cube_permute(curr_state, move) # Ted: Note <cube_permute> takes in color representation, not internal representation.
+                state_tensor = color_to_internal(curr_state)
+                state_tensor = torch.tensor([[stoi[c] for c in state_tensor]]) # Ted: Encode.
+                idx = torch.cat((idx, state_tensor.cuda()), dim=1)
+                idx = torch.cat((idx, separator_state_end.cuda()), dim=1) # Concatenate new state-end separator.
+
+            
+        return False # Did not manage to solve.

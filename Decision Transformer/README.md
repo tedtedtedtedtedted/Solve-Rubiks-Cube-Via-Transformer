@@ -1,4 +1,4 @@
-All the configurations are in the file config/config.yaml
+All the configurations are in the file config/config.yaml for the decision transformer and config/config_agent.yaml for the online decision transformer
 
 To reproduce the decision transformer results, run train_cube.py
 

@@ -6,6 +6,16 @@
      width="700" />
 </p>
 
+## First time setup
+Install the hydra-core and transformers packages (ontop of the usual pytorch and numpy)
+
+## File structure:
+The important folders are:
+- CubeGPT: The Regular Transformer
+- Decision Transformer: The decision transformer and online decision transformer
+Please enter these directories for more detailed README instructions to run the code.
+
+
 ## Name
 - Curious Transformer.
      - Curious: Curiousity-driven learning.
@@ -20,20 +30,3 @@
 - [ ] Apply Curious Transformer to solve $3 \times 3$ Rubik's cube.
 - [ ] Generalize to $d \times d$ Rubik's cube.
 - [ ] Generalize to any Reinforcement Learning tasks with deterministic, fully observable, discrete environment.
-
-
-## First time setup
-1. In the directory with the file setup.py, run the command:
-```Shell
-pip install -e .
-```
-or equivalent for your package manager (or `python3 -m pip install -e .` if it doesn't work).
-
-2. Run rubiks.py to check if everything works.
-```Shell
-python3 rubiks.py
-```
-
-3. Import Cube from rubiks to start building intelligent agents :)
-
-
